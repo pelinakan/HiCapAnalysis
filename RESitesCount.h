@@ -10,16 +10,16 @@ public :
 	vector < int > chrends;
 	int MappTextBinaryFileSize;
 	void InitialiseVars(void);
-	void CreateIndexFile_RESites(void);
+	void WriteandIndex_RESitesBinaryFile(void);
 	void WriteRESitesText_toBinaryFile(void);
-	bool GettheRENums(std::string, int, int*);
+	bool GettheREPositions(std::string, int, int*);
 	int GetRESitesCount(string, int , int);
 
 private:
 	void FindBinaryPos(int, int, int&, int&);
 };
 
-void RESitesClass::CreateIndexFile_RESites(void){
+void RESitesClass::WriteandIndex_RESitesBinaryFile(void){
 	
 #ifdef UNIX
 	string s;
@@ -29,12 +29,12 @@ void RESitesClass::CreateIndexFile_RESites(void){
 	s.clear();
 
 	s.append(dirname);
-	s.append("MM9.GATCNumandPos.Index.txt");
+	s.append("MM9.GATCPos.Index.txt");
 	ofstream REindexf(s.c_str());
 	s.clear();
 
 	s.append(dirname);
-	s.append("MM9.GATCNumandPos.bin");
+	s.append("MM9.GATCPos.bin");
 	ofstream REbinaryf(s.c_str(), ios::binary); // start end mappability
 	s.clear();
 
@@ -46,26 +46,21 @@ void RESitesClass::CreateIndexFile_RESites(void){
 #ifdef WINDOWS
 	ifstream RESitesf("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCpos.txt");
 
-	ofstream REindexf("MM9.GATCNumandPos.index.txt");// Format : chr '\t' start '\t' offset
-	ofstream REbinaryf("MM9.GATCNumandPos.bin", ios::binary); // start end mappability
+	ofstream REindexf("MM9.GATCPos.index.txt");// Format : chr '\t' start '\t' offset
+	ofstream REbinaryf("MM9.GATCPos.bin", ios::binary); // start end mappability
 	ofstream REchrbounds("MM9.chrLengths.txt");
 #endif
 
 	string chrname,chrp,temp;
 	int pos, chrstart; 
 	int span = 1000000; // Window size
-	int count = 0; // how many windows per chunk
-	int renum = 0;
 	int offset;
 	vector < int > posvector;
-	vector < int > renumvector;
 
 	//For indexing
 
 	bool f=0;
 	RESitesf >> chrp >> pos >> temp >> temp; // Read the first line
-	++renum;
-	renumvector.push_back(renum);
 	chrname = chrp; // get the chr name outside the loop
 	chrstart = pos; // chromosome start
 	
@@ -74,9 +69,6 @@ void RESitesClass::CreateIndexFile_RESites(void){
 		int binend = binstart + span;
 		while( chrname == chrp && (pos >= binstart && pos <= binend)){
 			posvector.push_back(pos);
-			++renum;
-			renumvector.push_back(renum);
-			++count;
 			offset = REbinaryf.tellp(); // To index the binary file that contains number and pos of RE sites
 			RESitesf >> chrp >> pos >> temp >> temp; 
 			if(RESitesf.eof()){
@@ -85,46 +77,42 @@ void RESitesClass::CreateIndexFile_RESites(void){
 			}
 		}
 		for(int i=0; i < posvector.size();++i){
-			REbinaryf.write((char *)(&(renumvector[i])), sizeof((renumvector[i])));	
 			REbinaryf.write((char *)(&(posvector[i])), sizeof((posvector[i])));	
 		}	
 		REindexf << chrname << '\t' << binstart << '\t' << binend << '\t'
-			<< span << '\t' << (posvector.size() + renumvector.size()) << '\t' << offset << endl;
+			<< span << '\t' << (posvector.size()) << '\t' << offset << endl;
 		
 		if((chrname != chrp) || f ){			
 			REchrbounds << chrname << '\t' << chrstart << '\t' << posvector.back() << endl;
 			chrname = chrp;
 			chrstart = pos;
-			renum = 0;
 			cout << chrname <<  endl;
 		}
 		posvector.clear();
-		renumvector.clear();
-		count = 0;
 	}
 }
-void RESitesClass::WriteRESitesText_toBinaryFile(void){
+void RESitesClass::WriteRESitesText_toBinaryFile(void){ //Index the index file itself
 string temp, chr, chrtemp;
 
 int start, end, count, offset, fsize, fsize_temp;
 #ifdef WINDOWS
-	ifstream MappF("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCNumandPos.Index.txt");
-	ofstream MappFBin("MM9.GATCNumandPos.Index.binary", ios::binary);
-	ofstream ofile("MM9.GATCNumandPos.Index.chr_offsets.txt");
+	ifstream MappF("MM9.GATCPos.Index.txt");
+	ofstream MappFBin("MM9.GATCPos.Index.binary", ios::binary);
+	ofstream ofile("MM9.GATCPos.Index.chr_offsets.txt");
 
 #endif
 #ifdef UNIX
 string s;
 s.append(dirname);
-s.append("MM9.GATCNumandPos.Index.txt");
+s.append("MM9.GATCPos.Index.txt");
 ifstream MappF(s.c_str());
 s.clear();
 s.append(dirname);
-s.append("MM9.GATCNumandPos.Index.binary");
+s.append("MM9.GATCPos.Index.binary");
 ofstream MappFBin(s.c_str(),ios::binary);
 s.clear();
 s.append(dirname);
-s.append("MM9.GATCNumandPos.Index.chr_offsets.txt");
+s.append("MM9.GATCPos.Index.chr_offsets.txt");
 ofstream ofile(s.c_str());
 #endif
 
@@ -169,18 +157,18 @@ void RESitesClass::InitialiseVars(void){
 	window = 200000;
 
 #ifdef WINDOWS
-	ifstream ifile("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCNumandPos.Index.chr_offsets.txt");
-	ifstream Mapptextbin("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCNumandPos.Index.binary", ios::binary);
+	ifstream ifile("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCPos.Index.chr_offsets.txt");
+	ifstream Mapptextbin("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCPos.Index.binary", ios::binary);
 #endif
 
 #ifdef UNIX
 string s;
 s.append(dirname);
-s.append("MM9.GATCNumandPos.Index.chr_offsets.txt");
+s.append("MM9.GATCPos.Index.chr_offsets.txt");
 ifstream ifile(s.c_str());
 s.clear();
 s.append(dirname);
-s.append("MM9.GATCNumandPos.Index.binary");
+s.append("MM9.GATCPos.Index.binary");
 ifstream Mapptextbin(s.c_str(), ios::binary);
 #endif
 
@@ -228,14 +216,13 @@ ifstream chrbounds(s.c_str());
 void  RESitesClass::FindBinaryPos(int chroffset, int coord, int &fileoffset, int &bitcount){
 
 #ifdef WINDOWS
-ifstream file2 ("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCNumandPos.Index.binary",ios::binary);
-// GCtext_MM9.binary file contains start, end count and offset information
+ifstream file2 ("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCPos.Index.binary",ios::binary);
 #endif
 
 #ifdef UNIX
 string s;
 s.append(dirname);
-s.append("MM9.GATCNumandPos.Index.binary");
+s.append("MM9.GATCPos.Index.binary");
 ifstream file2 (s.c_str(),ios::binary);
 // GCtext_MM9.binary file contains start, end count and offset information
 #endif
@@ -270,13 +257,13 @@ int start, end, count, offset;
 int RESitesClass::GetRESitesCount(string chr, int st, int end){
 
 #ifdef WINDOWS
-ifstream file ("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCNumandPos.bin", ios::in | ios::binary | ios::ate);
+ifstream file ("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCPos.bin", ios::in | ios::binary | ios::ate);
 #endif
 
 #ifdef UNIX
 string s;
 s.append(dirname);
-s.append("MM9.GATCNumandPos.bin");
+s.append("MM9.GATCPos.bin");
 ifstream file(s.c_str(),ios::binary);
 #endif
 
@@ -288,7 +275,7 @@ if(file.is_open())
 {
 	int offset;
 	int chroffset,chrend;
-	int REpos = 0, REnum = 0;
+	int REpos = 0;
 
 
 	for(int i=0;i<chr_names.size();++i){
@@ -306,13 +293,11 @@ if(file.is_open())
 	for (int i = 0; i < bitcount ; ++i){
 		if (file.eof())
 			break;
-		file.read((char *)(&REnum),sizeof(REnum));
 		file.read((char *)(&REpos),sizeof(REpos));
 
 		while ((REpos >= st && REpos <= end)){
 			if (file.eof())
 				break;
-			file.read((char *)(&REnum),sizeof(REnum));
 			file.read((char *)(&REpos),sizeof(REpos));
 			++REcount;
 		}
@@ -326,23 +311,22 @@ if(file.is_open())
 
 }
 
-bool RESitesClass::GettheRENums(std::string chr, int pos, int* renums){
+bool RESitesClass::GettheREPositions(std::string chr, int pos, int* renums){
 	
 #ifdef WINDOWS
-	ifstream file ("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCNumandPos.bin", ios::in | ios::binary | ios::ate);
+	ifstream file ("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCPos.bin", ios::in | ios::binary | ios::ate);
 #endif
 	
 #ifdef UNIX
 string s;
 s.append(dirname);
-s.append("MM9.GATCNumandPos.bin");
+s.append("MM9.GATCPos.bin");
 ifstream file(s.c_str(),ios::binary);
 #endif
 	ifstream::pos_type fileSize;
 
 	if(file.is_open())
 	{
-		int offset;
 		int chroffset,chrend;
 		
 		// Find the right chromosome
@@ -359,13 +343,13 @@ ifstream file(s.c_str(),ios::binary);
 		}	
 		// Get to the right offset
 #ifdef WINDOWS
-		ifstream file2 ("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCNumandPos.Index.binary",ios::binary);
+		ifstream file2 ("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\MM9.GATCPos.Index.binary",ios::binary);
 		// GATC_MM9.binary file contains start, end count and offset information
 #endif
 #ifdef UNIX
 string s;
 s.append(dirname);
-s.append("MM9.GATCNumandPos.Index.binary");
+s.append("MM9.GATCPos.Index.binary");
 ifstream file2(s.c_str(),ios::binary);
 #endif
 		file2.seekg(chroffset, ios::beg); // Get to the correct chromosome position 
@@ -403,18 +387,12 @@ ifstream file2(s.c_str(),ios::binary);
 		file2.close(); // Offsets are read now read the restriction enzyme sites
 
 	int REposprev, REposnext;
-	int REnumprev, REnumnext;
 	file.seekg(offsetprev, ios::beg); // Get to the right position
 	for (int i = 0; i < bitcount; ++i){
-		file.read((char *)(&REnumprev),sizeof(REnumprev));
 		file.read((char *)(&REposprev),sizeof(REposprev));
-
-		file.read((char *)(&REnumnext),sizeof(REnumnext));
 		file.read((char *)(&REposnext),sizeof(REposnext));
 		while (REposnext <=  pos && pos < chrend){
 			REposprev = REposnext;
-			REnumprev = REnumnext;
-			file.read((char *)(&REnumnext),sizeof(REnumnext));
 			file.read((char *)(&REposnext),sizeof(REposnext));
 		}
 		renums[0] = REposprev;
