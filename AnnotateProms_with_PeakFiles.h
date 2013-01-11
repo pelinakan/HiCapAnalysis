@@ -1,63 +1,29 @@
-struct temppeak{
-	string chr;
-	int start;
-	int end;
-	double signal;
-};
-
 class PeakClass {
 	friend class PromoterClass;
 	friend class NegCtrlClass;
 public:
 	vector < string > abnames;
+	boost::unordered::unordered_map< string, int > chr_indexes;
 	vector < PeakMap > p;
- 	vector <int> ChrRowStartIndexes;
-	vector <int> ChrRowEndIndexes;
-	vector <int> peakcenters;
-	vector <double> peaksignals;
-	vector < bool > activepeak;
-	void InitializeData(void);
-	void ReadPeakFile(ifstream&,bool, RESitesClass&,vector<string>&);
+	void ReadPeakFile(ifstream&, RESitesClass&,vector<string>&);
 	void AnnotatewithPromoters(PromoterClass&,int);
-	void AnnotatewithNegCtrls(NegCtrlClass&,int);
-	void AssociateProbeswithPeaks(ProbeSet&);
+//	void AnnotatewithNegCtrls(NegCtrlClass&,int);
+//	void AssociateProbeswithPeaks(ProbeSet&);
 
-	~PeakClass();
-private:
-	void GetPeakFeats(stringstream&,temppeak&,bool);
-	void PrintEnrichments(ofstream&,vector<double>,vector<double>&,vector<int>);
 };
-PeakClass::~PeakClass(){
-	abnames.clear();
-//	ChrNames.clear();
-	ChrRowStartIndexes.clear();
-	ChrRowEndIndexes.clear();
-	peakcenters.clear();
-	peaksignals.clear();
-	activepeak.clear();
-}
-
-void PeakClass::InitializeData(void){
-
-
-
-}
-void PeakClass::ReadPeakFile(ifstream &peakfile, bool ifBEDFile, RESitesClass& dpnIIsites, vector<string>& cn){
-	string pline,chr1,chr2;
-	temppeak t;
-	long int index=0,peakm;
+void PeakClass::ReadPeakFile(ifstream &peakfile, RESitesClass& dpnIIsites, vector<string>& cn){
+	string chr1,chr2,temp,pchr;
+	int st,end;
 	int *renums;
 	renums = new int [2];
 
-	getline(peakfile,pline); // Read the peak line
-	stringstream peak ( pline ); 
-	GetPeakFeats(peak,t,ifBEDFile);
+	peakfile >> pchr >> st >> end;
+	getline(peakfile,temp);
 	p.push_back(PeakMap()); // Create a new PeakMap for a new chromosome
-	p.back().maptochrname = t.chr; // Write chr name
-	peakm=t.start+((t.end-t.start)/2);
-	dpnIIsites.GettheRENums(t.chr,peakm,renums); // Get the closest REsite
+	chr_indexes[pchr] = (p.size()-1); // Map chr name to peak array index
+	dpnIIsites.GettheREPositions(pchr,(st + ((end-st)/2)),renums); // Get the closest REsite
 	p.back().peaks.insert(renums[0]); // Insert the closest RE site to the map
-	chr1=t.chr;
+	chr1 = pchr;
 	bool foundbefore = 0;
 	for(int c = 0;c < cn.size();++c ){
 		if(cn[c] == chr1 ){
@@ -67,30 +33,24 @@ void PeakClass::ReadPeakFile(ifstream &peakfile, bool ifBEDFile, RESitesClass& d
 	if(!foundbefore)
 		cn.push_back(chr1);
 	do{
-		getline(peakfile,pline);
-		peak.clear();
-		peak.str(pline);
-		GetPeakFeats(peak,t,ifBEDFile);
-		chr2 = t.chr;
-		while(chr1==chr2 && pline!="" && (!peakfile.eof())){
-			peakm=t.start+((t.end-t.start)/2);
-			dpnIIsites.GettheRENums(t.chr,peakm,renums); // Get the closest REsite
+		peakfile >> pchr >> st >> end;
+		getline(peakfile,temp);
+		chr2 = pchr;
+		while(chr1==chr2 && (!peakfile.eof())){
+			dpnIIsites.GettheREPositions(pchr,(st + ((end-st)/2)),renums); // Get the closest REsite
 			p.back().peaks.insert(renums[0]); // Insert the closest RE site to the map
-			getline(peakfile,pline);
-			peak.clear();
-			peak.str(pline);
-			GetPeakFeats(peak,t,ifBEDFile);
+			peakfile >> pchr >> st >> end;
+			getline(peakfile,temp);
 			chr1 = chr2;
-			chr2 = t.chr;
+			chr2 = pchr;
 		}
-		peakm=t.start+((t.end-t.start)/2);
-		if(pline == "" || peakfile.eof() || peakm == 0)
+		if(peakfile.eof() || (st + ((end-st)/2) == 0))
 			break;
 		p.push_back(PeakMap()); // Create a new PeakMap for a new chromosome
-		p.back().maptochrname = t.chr; // Write chr name
-		dpnIIsites.GettheRENums(t.chr,peakm,renums); // Get the closest REsite
+		chr_indexes[pchr] = (p.size()-1); // Map chr name to peak array index
+		dpnIIsites.GettheREPositions(pchr,(st + ((end-st)/2)),renums); // Get the closest REsite
 		p.back().peaks.insert(renums[0]); // Insert the closest RE site to the map
-		chr1=t.chr;
+		chr1=pchr;
 		bool foundbefore = 0;
 		for(int c = 0;c < cn.size();++c ){
 			if(cn[c] == chr1 ){
@@ -100,50 +60,15 @@ void PeakClass::ReadPeakFile(ifstream &peakfile, bool ifBEDFile, RESitesClass& d
 		if(!foundbefore)
 			cn.push_back(chr1);
 		cout << chr1 << endl;
-	}while(!peakfile.eof()&& pline!="");
+	}while(!peakfile.eof());
 }
 
-void PeakClass::GetPeakFeats(stringstream &line, temppeak &peak, bool BED){
-string field;
-if(BED){
-	getline(line,field,'\t');
-	getline(line,peak.chr,'\t');
-	getline(line,field,'\t');
-	peak.start=atoi(field.c_str());
-	getline(line,field,'\t');
-	peak.end=atoi(field.c_str());
-
-	getline(line,field,'\t');
-	getline(line,field,'\t');
-	getline(line,field,'\t');
-	getline(line,field,'\t');
-
-	getline(line,field,'\t');
-	peak.signal=atof(field.c_str()); 		
-}
-else{
-	getline(line,peak.chr,'\t');
-	getline(line,field,'\t');
-	peak.start=atoi(field.c_str());
-	getline(line,field,'\t');
-	peak.end=atoi(field.c_str());
-
-	getline(line,field,'\t');
-	peak.signal=atof(field.c_str()); 		
-}
-
-}
-
+/*
 void PeakClass::AnnotatewithPromoters(PromoterClass &Prs,int abindex){
-int i=0,j=0,k=0;
-int diff;
-long int startsearch,endsearch;
-
-vector < vector < int > > PeakBins;
-
-for(i=0;i<Prs.NofPromoters;++i){
-	startsearch=0;endsearch=-1;
-//	for(j=0;j<ChrNames.size();++j){
+	
+	
+	for(int i = 0;i < Prs.NofPromoters; ++i){
+	for(j=0;j<ChrNames.size();++j){
 //		if(Prs.refseq[i].chr==ChrNames[j]){
 			startsearch=ChrRowStartIndexes[j];
 			endsearch=ChrRowEndIndexes[j];
@@ -164,6 +89,7 @@ for(i=0;i<Prs.NofPromoters;++i){
 		cout << i << "    Promoters Associated with Peaks" << endl;
 }
 }
+
 void PeakClass::AnnotatewithNegCtrls(NegCtrlClass &ng,int abindex){
 int i=0,j=0,k=0;
 long int startsearch,endsearch;
@@ -216,3 +142,4 @@ for(i=0;i<ChrRowStartIndexes.size();++i){
 }
 
 
+*/

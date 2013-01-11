@@ -3,7 +3,7 @@ class ProcessSAM{
 	friend class NegCtrlClass;
 	friend class ProbeSet;
 public:
-	void ProcessTheSAMFile(PromoterClass&,NegCtrlClass&,ProbeSet&,RESitesClass&,MappabilityClass&);
+	void ProcessTheSAMFile(PromoterClass&,NegCtrlClass&,ProbeSet&,string);
 private:
 	bool GetPairInformation(stringstream&, stringstream&, PairStruct&);
 };
@@ -38,52 +38,72 @@ bool ProcessSAM::GetPairInformation(stringstream &r1, stringstream &r2, PairStru
 }
 
 
-void ProcessSAM::ProcessTheSAMFile(PromoterClass& promoters,NegCtrlClass& negctrls,ProbeSet& mm9prs,RESitesClass& dpnII, MappabilityClass& mapp){
-	PairStruct *PairPool;
-	PairPool = new PairStruct[BUFFERSIZE];
+void ProcessSAM::ProcessTheSAMFile(PromoterClass& promoters,NegCtrlClass& negctrls,ProbeSet& mm9prs, string SAMFILENAME){
 
-	int poolsize=0,nofloops=0;
+	ifstream SAMFILE(SAMFILENAME.c_str());
+	if(!SAMFILE.is_open())
+		cerr << "Input File cannot be opened" << endl;
+
+	PairStruct* PairPool = new PairStruct[BUFFERSIZE];
+	int poolsize = 0,nofloops = 0;
 	string r;
-	bool icj; //not a interchromosomal junction
+	bool icj; //not a inter-chromosomal junction
+	MappabilityClass mapp;
 	do{
 		do{
 			getline(SAMFILE,r); // Read the forward read
 			stringstream read1 ( r );
 			getline(SAMFILE,r);
 			stringstream read2 ( r ); //Read the reverse read
-			icj=GetPairInformation(read1,read2,PairPool[poolsize]);
+			icj = GetPairInformation(read1,read2,PairPool[poolsize]);
 			++poolsize;
-		}while(poolsize<BUFFERSIZE && (!SAMFILE.eof()));
+		}while(poolsize < BUFFERSIZE && (!SAMFILE.eof()));
 		if(SAMFILE.eof())
 			poolsize--;
-	//#pragma omp parallel for default(shared)
+
+		cout << BUFFERSIZE  << "    Reads Read" << endl;
+		vector < RESitesClass > dpnIIparallel; // Each thread will have its own RESiteClass
+
+		int nofthreads;
+#pragma omp parallel
+		{
+		nofthreads = omp_get_num_threads(); // Get num of threads
+		}
+		nofthreads = 2;
+		cout << "Number of Threads   " << nofthreads << endl;
+		for (int t = 0; t < nofthreads; ++t){
+			cout << "Thread No " << t << "    ";
+			dpnIIparallel.push_back(RESitesClass());
+			dpnIIparallel.back().InitialiseVars(); // Initialise all RESiteClass
+		}
+#pragma omp parallel for num_threads (nofthreads)
 		for(int i=0;i<poolsize;++i){
-			bool pair1ann=false,pair2ann=false;
-			bool annotateMate=1;
+			bool pairann = false;
 			bool onprobe_forward = 1;
 			bool onprobe_reverse = 1;
+			int tid = omp_get_thread_num(); // Get thread id
 			//onprobe_forward=mm9prs.AssociateReadwithProbes(PairPool[i].chr_1,PairPool[i].startcoord,PairPool[i].endcoord);
 			//onprobe_reverse=mm9prs.AssociateReadwithProbes(PairPool[i].chr_2,PairPool[i].endcoord,PairPool[i].startcoord);
 			if (onprobe_forward || onprobe_reverse){
-				pair1ann=promoters.AnnotatewithPromoters(PairPool[i].chr_1,PairPool[i].startcoord,PairPool[i].chr_2,PairPool[i].endcoord,annotateMate,dpnII,mapp,0,0);
-				if(annotateMate)
-					pair2ann=promoters.AnnotatewithPromoters(PairPool[i].chr_2,PairPool[i].endcoord,PairPool[i].chr_2,PairPool[i].startcoord,annotateMate,dpnII,mapp, 1,pair1ann);		
-				/*
-				if(!pair1ann && !pair2ann){
-					pair1ann=negctrls.AnnotateWithNegCtrls(PairPool[i].chr_1,PairPool[i].startcoord,PairPool[i].endcoord,annotateMate,dpnII, mapp);
-					if(annotateMate)
-						pair2ann=negctrls.AnnotateWithNegCtrls(PairPool[i].chr_2,PairPool[i].endcoord,PairPool[i].startcoord,annotateMate,dpnII,mapp);
-				}
-				*/
+				 pairann = promoters.AnnotatewithPromoters(PairPool[i].chr_1,PairPool[i].startcoord,PairPool[i].chr_2,PairPool[i].endcoord,dpnIIparallel[tid],mapp);
+				if(!pairann)// If both reads are not annotated with promoters
+					pairann = negctrls.AnnotateWithNegCtrls(PairPool[i].chr_1,PairPool[i].startcoord,PairPool[i].chr_2,PairPool[i].endcoord,dpnIIparallel[tid],mapp);
 			}
 		}
-		delete []PairPool;
+
+		for (int t = 0; t < nofthreads; ++t){
+			dpnIIparallel[t].posvector.clear();
+		}	
+
+		TotalNumberofPairs += poolsize;
+		delete[] PairPool;
 		PairPool = new PairStruct[BUFFERSIZE];
-		poolsize=0;
+		poolsize = 0;
 		++nofloops;
 		cout << BUFFERSIZE*nofloops << "   Pairs Processed" << endl;
+		//break;
 	}while(!SAMFILE.eof());
-
-
+	cout << SAMFILENAME << "      Read" << endl;
+	SAMFILE.close();
 
 }

@@ -74,6 +74,7 @@ int bitcount = 0;
 int REcount = 0;
 int rightchr;
 int starttosearch = 0;
+int HalfClusterDist = (coreprom_upstream + coreprom_downstream)/2;
 
 boost::unordered::unordered_map< string, int >::iterator it = chroffsets_indexfile.find(chr);
 rightchr = it->second; // Get the right index vector
@@ -100,7 +101,8 @@ for (int i = starttosearch; i < starttosearch + bitcount ; ++i){ //This is where
 }
 
 bool RESitesClass::GettheREPositions(std::string chr, int pos, int* renums){ // Returns closest RE sites to a position
-
+	
+int HalfClusterDist = (coreprom_upstream + coreprom_downstream)/2;
 int rightchr;
 int starttosearch = 0;
 int bitcount = 0;
