@@ -22,9 +22,12 @@ using namespace std;
 #define CHAR16_T
 #endif
 
+<<<<<<< HEAD
 #define BOOST_DISABLE_ASSERTS
 #define NDEBUG
 
+=======
+>>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 // disable some irrelevant warnings
 #if (AE_COMPILER==AE_MSVC)
 #pragma warning(disable:4100)
@@ -54,7 +57,11 @@ using namespace alglib_impl;
 //#define GraphGC
 string dirname = "/bubo/home/h20/pelin/3Cproj/bin/supportingFiles/";
 string wdirname = "C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\PeakFiles\\";
+<<<<<<< HEAD
 string ExpFileName;
+=======
+
+>>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 int MinimumJunctionDistance; // To be entered by the user
 int MinNumberofReads; // To be entered by the user
 int CellType; // 0:mES, 1:XEN, 2:TS // read from the experiments file
@@ -94,6 +101,7 @@ int main (int argc,char* argv[]){
 
 #ifdef UNIX
 
+<<<<<<< HEAD
 	if (argc < 4) {
 		print_usage();
 		return -1;
@@ -109,14 +117,33 @@ int main (int argc,char* argv[]){
 #endif
 #ifdef WINDOWS
 	ExpFileName = "Experiments.txt";
+=======
+	if (argc < 3) {
+		print_usage();
+		return -1;
+	}
+	MinNumberofReads = atoi(argv[1]);
+	MinNumberofReads = double(MinNumberofReads);
+	MinimumJunctionDistance = atoi(argv[2]);
+
+	cout << "Min Number of Pairs      " << MinNumberofReads << endl;
+	cout << "Min Junction Distance    " << MinimumJunctionDistance << endl;
+>>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 #endif
 /////////////////////////////////////////////////////////One-time use functions
 	//	CompareExperiments intersectExp;
 	//	intersectExp.readandCompare();
+<<<<<<< HEAD
 
 	//	EnhancerPositions();
 
 //	LaminB1Class LaminB1;
+=======
+
+	//	EnhancerPositions();
+
+	LaminB1Class LaminB1;
+>>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 /////////////////////////////////////////////////////////
 
 //   --        INITIALISE CLASSES   --
@@ -141,6 +168,7 @@ int main (int argc,char* argv[]){
 	cout << "Negative Controls Annotated" << endl;
 
 /////////////////////////////////////////////////////////One time use functions
+<<<<<<< HEAD
 //	LaminB1.CalculateGeneLaminValues(Promoters); 
 
 /////////////////////////////////////////////////////////
@@ -155,6 +183,23 @@ int main (int argc,char* argv[]){
 		ExpFile >> SAMFILENAME >> BaseFileName >> CellType;
 	}
 	cout << "ALL SAMFILES READ " << endl;
+=======
+	LaminB1.CalculateGeneLaminValues(Promoters); 
+
+/////////////////////////////////////////////////////////
+
+	return 1;
+
+	ReadMetaPeakFile(); // If peaks are already processed.
+	ifstream ExpFile("Experiments.txt"); // Experiment Names and details
+	string SAMFILENAME, BaseFileName;
+	do{ // Reads all the pairs in each experiment and fills the interaction maps
+		ExpFile >> SAMFILENAME >> BaseFileName >> CellType;
+		cout << SAMFILENAME << "     will be read" << endl;
+		samfile.ProcessTheSAMFile(Promoters,NegativeControls,mm9probes,SAMFILENAME);
+	}while(!(ExpFile.eof()));
+	cout << "SAMFILES READ " << endl;
+>>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 
 	background.CalculateMeanandStdRegress(NegativeControls, BaseFileName); 
 	cout << " Background Levels Calculated " << endl;

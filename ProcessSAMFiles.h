@@ -69,7 +69,11 @@ void ProcessSAM::ProcessTheSAMFile(PromoterClass& promoters,NegCtrlClass& negctr
 		{
 		nofthreads = omp_get_num_threads(); // Get num of threads
 		}
+<<<<<<< HEAD
 		nofthreads = 4;
+=======
+		nofthreads = 2;
+>>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 		cout << "Number of Threads   " << nofthreads << endl;
 		for (int t = 0; t < nofthreads; ++t){
 			cout << "Thread No " << t << "    ";
@@ -101,9 +105,17 @@ void ProcessSAM::ProcessTheSAMFile(PromoterClass& promoters,NegCtrlClass& negctr
 		poolsize = 0;
 		++nofloops;
 		cout << BUFFERSIZE*nofloops << "   Pairs Processed" << endl;
+<<<<<<< HEAD
 //		if(BUFFERSIZE*nofloops == 20000000)	
 //			break;
 	}while(!SAMFILE.eof());
 	cout << SAMFILENAME << "      Read" << endl;
 	SAMFILE.close();
+=======
+		//break;
+	}while(!SAMFILE.eof());
+	cout << SAMFILENAME << "      Read" << endl;
+	SAMFILE.close();
+
+>>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 }
