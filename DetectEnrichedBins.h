@@ -31,23 +31,29 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 	//			tempf << prs.proms[i].chr << ":" << (it->first - 100) << "-" << (it->first + 100) << '\t' << m << endl;
 				if (m > 0.80){
 					double q, p_value;
-					double dist = prs.proms[i].closestREsitenums[0] - it->first; 
-					int bin = dist / BinSize; 
-					if((background.bglevels.mean_upstream).find(bin) == background.bglevels.mean_upstream.end()){
-						background.bglevels.mean_upstream[bin] = 0;
-						background.bglevels.stdev_upstream[bin] = 1;
-						p_value = 0.0;
-					}
-					else{
+					int dist;
+					if (prs.proms[i].strand =="+")
+						dist = it->first - prs.proms[i].closestREsitenums[0]; // negative
+					else
+						dist = prs.proms[i].closestREsitenums[1] - it->first; // negative
+					int bin = abs(dist) / BinSize; 
+//					if((background.bglevels.mean_upstream).find(bin) == background.bglevels.mean_upstream.end()){
+//						background.bglevels.mean_upstream[bin] = 0;
+//						background.bglevels.stdev_upstream[bin] = 1;
+//						p_value = 0.0;
+//					}
+//					else{
 						q = alglib::normaldistribution(( normsignal - background.bglevels.mean_upstream[bin]) / background.bglevels.stdev_upstream[bin]); //z-score
 						p_value = 1- q;
-					}
+//					}
+//					cout << i << '\t' << dist << '\t' << bin << '\t' << normsignal << '\t' << background.bglevels.mean_downstream[bin] << '\t' << background.bglevels.stdev_upstream[bin] << '\t' << q << '\t' << p_value << endl;
 					if (p_value < SignificanceThreshold){ 
 						prs.proms[i].interactions.push_back(InteractionStruct());
 						prs.proms[i].interactions.back().peakprofile.clear();
+						prs.proms[i].interactions.back().p_val = p_value;
 						prs.proms[i].interactions.back().mappability = m;
 						prs.proms[i].interactions.back().chr = prs.proms[i].chr;
-						prs.proms[i].interactions.back().distance = it->first - prs.proms[i].closestREsitenums[0]; // negative 
+						prs.proms[i].interactions.back().distance = dist;  // negative
 						prs.proms[i].interactions.back().norm_signal = it->second;
 						prs.proms[i].interactions.back().pos = it->first;
 						prs.proms[i].interactions.back().type = 'U'; // U: upstream , D: downstream , X: inter-chromosomal
@@ -64,20 +70,26 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 				double m = mapp.GetMappability(prs.proms[i].chr, (it->first - 100), 200);
 				if (m > 0.80){				
 					double q, p_value;
-					double dist = it->first - prs.proms[i].closestREsitenums[1]; 
-					int bin = dist / BinSize; 
-					if((background.bglevels.mean_downstream).find(bin) == background.bglevels.mean_downstream.end()){
-						background.bglevels.mean_downstream[bin] = 0;
-						background.bglevels.stdev_downstream[bin] = 1;
-						p_value = 0.0;
-					}
-					else{
+					int dist;
+					if (prs.proms[i].strand =="+")
+						dist = it->first - prs.proms[i].closestREsitenums[1]; // positive
+					else
+						dist = prs.proms[i].closestREsitenums[0] - it->first; // positive
+					int bin = abs(dist) / BinSize; 
+	//				if((background.bglevels.mean_downstream).find(bin) == background.bglevels.mean_downstream.end()){
+	//					background.bglevels.mean_downstream[bin] = 0;
+	//					background.bglevels.stdev_downstream[bin] = 1;
+	//					p_value = 0.0;
+	//				}
+	//				else{
 					q = alglib::normaldistribution(( normsignal - background.bglevels.mean_downstream[bin]) / background.bglevels.stdev_downstream[bin]); //z-score
 					p_value = 1- q;
-					}
+	//				}
+//					cout << i << '\t' << dist << '\t' << bin << '\t' << normsignal << '\t' << background.bglevels.mean_downstream[bin] << '\t' << background.bglevels.stdev_upstream[bin] << '\t' << q << '\t' << p_value << endl;
 					if (p_value < SignificanceThreshold){
 						prs.proms[i].interactions.push_back(InteractionStruct());
 						prs.proms[i].interactions.back().peakprofile.clear();
+						prs.proms[i].interactions.back().p_val = p_value;
 						prs.proms[i].interactions.back().mappability = m;
 						prs.proms[i].interactions.back().chr = prs.proms[i].chr;
 						prs.proms[i].interactions.back().distance = dist;  // positive
@@ -99,6 +111,7 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 					if (m > 0.80){
 						prs.proms[i].interactions.push_back(InteractionStruct());
 						prs.proms[i].interactions.back().peakprofile.clear();
+						prs.proms[i].interactions.back().p_val = -1;
 						prs.proms[i].interactions.back().mappability = m;
 						prs.proms[i].interactions.back().chr.append(prs.proms[i].Signals_CTX[j].maptochrname);
 						prs.proms[i].interactions.back().distance = -1;
@@ -122,8 +135,8 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 	ofstream outf1(FileName.c_str());
 
 	outf1 << "Gene Name" << '\t' << "Representative Transcript Name" << '\t' << "Gene Expression" << '\t' << "Shared Promoter" << '\t' << "Number of RE Sites within core promoter" << '\t' << "Mappability of Core Promoter" << '\t' 
-		<< "Promoter chr" << '\t' << "Promoter TSS"  << '\t' << "Strand" << '\t' <<"Promoter UCSC" << '\t' << "Interactor UCSC (100 bases around interactor RE pos)" << '\t' << "Prom-Interactor UCSC" << '\t' << "Interactor chr" << '\t' << "Interaction RE pos" << '\t'
-		  << "Interactor Mappability (100 bases around the RE site)" << '\t' << "Distance" << '\t' << "Number of Pairs Supporting" << '\t' << "Peak Profile" << endl;
+		<< "Promoter chr" << '\t' << "Promoter TSS"  << '\t' << "Strand" << '\t' <<"Promoter UCSC" << '\t' << "Interactor UCSC (100 bases around interactor RE pos)" << '\t' << "Prom-Interactor UCSC" << '\t'
+		  << "Interactor Mappability (100 bases around the RE site)" << '\t' << "Distance" << '\t' << "Number of Pairs Supporting" << '\t' << "p value" << '\t' << "Peak Profile" << endl;
 
 	for(int i = 0; i < prs.NofPromoters; ++i){
 		for(int j = 0; j < prs.proms[i].interactions.size(); ++j){
@@ -154,7 +167,7 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 					outf1 << prs.proms[i].chr << ":" << prs.proms[i].TSS << "-" << prs.proms[i].interactions[j].pos << '\t';
 				if (prs.proms[i].interactions[j].type == 'X')
 					outf1 << "CTX" << '\t';
-				outf1 << prs.proms[i].interactions[j].chr << '\t' << prs.proms[i].interactions[j].pos << '\t' << prs.proms[i].interactions[j].mappability << '\t' << prs.proms[i].interactions[j].distance << '\t' << prs.proms[i].interactions[j].norm_signal << '\t' << prs.proms[i].interactions[j].peakprofile << endl;
+				outf1 << prs.proms[i].interactions[j].mappability << '\t' << prs.proms[i].interactions[j].distance << '\t' << prs.proms[i].interactions[j].norm_signal << '\t' << prs.proms[i].interactions[j].p_val << '\t' << prs.proms[i].interactions[j].peakprofile << endl;
 				peakfound = 1;
 			}
 			else{
@@ -183,7 +196,7 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 						outf1 << prs.proms[i].chr << ":" << prs.proms[i].TSS << "-" << prs.proms[i].interactions[j].pos << '\t';
 					if (prs.proms[i].interactions[j].type == 'X')
 						outf1 << "CTX" << '\t';
-					outf1 << prs.proms[i].interactions[j].chr << '\t' << prs.proms[i].interactions[j].pos << '\t' << prs.proms[i].interactions[j].mappability << '\t' << prs.proms[i].interactions[j].distance << '\t' << prs.proms[i].interactions[j].norm_signal << '\t' << prs.proms[i].interactions[j].peakprofile << endl;
+					outf1 << prs.proms[i].interactions[j].mappability << '\t' << prs.proms[i].interactions[j].distance << '\t' << prs.proms[i].interactions[j].norm_signal << '\t' << prs.proms[i].interactions[j].p_val << '\t' << prs.proms[i].interactions[j].peakprofile << endl;
 					peakfound = 1;
 				}
 				else if(metaPeaks[citer->second].metapeaks.find(repos[1]) != metaPeaks[citer->second].metapeaks.end()){
@@ -208,7 +221,7 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 						outf1 << prs.proms[i].chr << ":" << prs.proms[i].TSS << "-" << prs.proms[i].interactions[j].pos << '\t';
 					if (prs.proms[i].interactions[j].type == 'X')
 						outf1 << "CTX" << '\t';
-					outf1 << prs.proms[i].interactions[j].chr << '\t' << prs.proms[i].interactions[j].pos << '\t' << prs.proms[i].interactions[j].mappability << '\t' << prs.proms[i].interactions[j].distance << '\t' << prs.proms[i].interactions[j].norm_signal << '\t' << prs.proms[i].interactions[j].peakprofile << endl;
+					outf1 << prs.proms[i].interactions[j].mappability << '\t' << prs.proms[i].interactions[j].distance << '\t' << prs.proms[i].interactions[j].norm_signal << '\t' << prs.proms[i].interactions[j].p_val << '\t' << prs.proms[i].interactions[j].peakprofile << endl;
 					peakfound = 1;
 				}
 				if (!peakfound){
@@ -230,7 +243,7 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 						outf1 << prs.proms[i].chr << ":" << prs.proms[i].TSS << "-" << prs.proms[i].interactions[j].pos << '\t';
 					if (prs.proms[i].interactions[j].type == 'X')
 						outf1 << "CTX" << '\t';
-					outf1 << prs.proms[i].interactions[j].chr << '\t' << prs.proms[i].interactions[j].pos << '\t' << prs.proms[i].interactions[j].mappability << '\t' << prs.proms[i].interactions[j].distance << '\t' << prs.proms[i].interactions[j].norm_signal << '\t' << "NoPeakOverlap" << endl;
+					outf1 << prs.proms[i].interactions[j].mappability << '\t' << prs.proms[i].interactions[j].distance << '\t' << prs.proms[i].interactions[j].norm_signal << '\t' << prs.proms[i].interactions[j].p_val << '\t' << "NoPeakOverlap" << endl;
 				}
 			}
 		}

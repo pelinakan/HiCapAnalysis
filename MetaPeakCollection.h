@@ -109,3 +109,55 @@ cout << "Meta Peak Profile Read" << endl;
 
 
 }
+
+////////////////////////////////////////////////////////
+//READ AND PROCESS PEAKS  ,should be moved to the main body
+	/*
+ifstream AbNameFile;
+AbNameFile.open("AbNames.txt");
+vector < PeakClass > AllPeaks;
+
+string fname;
+do{
+	int abindex = 0;
+	string PeakFileName, ext1;
+
+	AbNameFile >> fname >> ext1;
+	cout << fname << "  " << ext1 << endl;
+	if(fname.compare("END") == 0)
+		break;
+
+#ifdef UNIX
+	PeakFileName.append(dirname);
+#endif
+#ifdef WINDOWS
+	PeakFileName.append(wdirname);
+#endif
+
+	ifstream PeakFile;
+	PeakFileName.append(fname);
+	AbNames.push_back(ext1);
+	PeakClass Peaks;
+	PeakFile.open(PeakFileName.c_str());
+
+	if(PeakFile.is_open())
+		Peaks.ReadPeakFile(PeakFile,dpnIIsites,ChrNames);
+	else
+		cerr << PeakFileName << "   cannot be opened"  << endl;
+
+	PeakFile.close();
+	
+	AllPeaks.push_back(Peaks);
+	AllPeaks[abindex].abnames.push_back(ext1);
+	cout << AbNames[abindex] << "   read " << endl;
+	++abindex;
+	PeakFileName.clear();
+	fname.clear();
+	ext1.clear();
+}while(fname != "END");
+cout << INTERACTIONFILENAMEBASE << "          All Peak Files Read" << endl;
+*/
+//FillMetaPeakMap(AllPeaks); // generates the meta peak file, this is generated once then later the program reads the 
+//metafile using the function "ReadMetaPeakFile()" above.
+//PEAKS ARE PROCESSED METAPEAK MAP GENERATED
+/////////////////////////////////////////////////////

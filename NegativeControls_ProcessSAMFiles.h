@@ -142,13 +142,14 @@ void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int 
 		}		
 	}
 	else{ // inter chromosomal interaction
-		bool chrfound = 0;		
-		for(int x = 0; x < negctrls[ncidx].Signals_CTX.size();++x){
-			if (p_chr_2.compare(negctrls[ncidx].Signals_CTX[x].maptochrname) == 0){
-				if(negctrls[ncidx].Signals_CTX[x].signal.find(renums[0]) == negctrls[ncidx].Signals_CTX[x].signal.end())
-					negctrls[ncidx].Signals_CTX[x].signal[renums[0]] = 1; // add a new entry
+		bool chrfound = 0;	
+		vector < SignalStruct_CTX >::iterator it;
+		for(it = negctrls[ncidx].Signals_CTX.begin(); it < negctrls[ncidx].Signals_CTX.end(); ++it){
+			if (p_chr_2.compare(it->maptochrname) == 0){
+				if(it->signal.find(renums[0]) == it->signal.end())
+					it->signal[renums[0]] = 1; // add a new entry
 				else // if inserted before
-					negctrls[ncidx].Signals_CTX[x].signal[renums[0]] = negctrls[ncidx].Signals_CTX[x].signal[renums[0]] + 1;
+					it->signal[renums[0]] = it->signal[renums[0]] + 1;
 				chrfound = 1;
 				break;
 			}
@@ -162,7 +163,7 @@ void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int 
 }
 
 void NegCtrlClass::AnnotateFeatFeatInteraction(int ncidx1, int ncidx2){
-	bool foundbefore = 0;			
+	bool foundbefore = 0;	
 	for (int x = 0; x < negctrls[ncidx1].NegcNegcSignals.size(); ++x){ // Check if the interaction with that promoter is seen before
 		if (negctrls[ncidx1].NegcNegcSignals[x].feat_index == ncidx2){
 			negctrls[ncidx1].NegcNegcSignals[x].normsignal += 1.0;

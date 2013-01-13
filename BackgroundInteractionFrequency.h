@@ -16,13 +16,14 @@ void DetermineBackgroundLevels::CalculateMeanandStdRegress(NegCtrlClass& ngs, st
 
 	boost::unordered::unordered_map< int, int > nofentries_perBin; // required for calculating mean
 	boost::unordered::unordered_map< int, int > signal_square; // required for calculating stdev
+	int distance;
 
-	//Upstream
+//Upstream
 	for(int i = 0; i < ngs.NofNegCtrls; i++){
 		boost::unordered::unordered_map< int, int >::const_iterator iter;
 		for (iter = ngs.negctrls[i].Signals.signal_ups.begin(); iter != ngs.negctrls[i].Signals.signal_ups.end(); ++iter){
-			int distance = (abs((ngs.negctrls[i].closestREsitenums[0] - iter->first)));
-			int bin = distance / BinSize; 
+			distance = iter->first - ngs.negctrls[i].closestREsitenums[0]; // negative
+			int bin = abs(distance) / BinSize; 
 			if(bglevels.mean_upstream.find(bin) == bglevels.mean_upstream.end())
 				bglevels.mean_upstream[bin] = iter->second;
 			else
@@ -54,7 +55,8 @@ signal_square.clear();
 	for(int i = 0; i < ngs.NofNegCtrls; i++){
 		boost::unordered::unordered_map< int, int >::const_iterator iter;
 		for (iter = ngs.negctrls[i].Signals.signal_down.begin(); iter != ngs.negctrls[i].Signals.signal_down.end(); ++iter){
-			int  bin = ((abs((iter->first) - ngs.negctrls[i].closestREsitenums[1]))) / BinSize;
+			distance = iter->first - ngs.negctrls[i].closestREsitenums[1]; // positive
+			int bin = abs(distance) / BinSize; 
 			if(bglevels.mean_downstream.find(bin) == bglevels.mean_downstream.end())
 				bglevels.mean_downstream[bin] = iter->second;
 			else
@@ -74,7 +76,7 @@ signal_square.clear();
 		it->second = it->second / (double(nofentries_perBin[it->first])); // Mean for that bin
 		double mean_square = ((it->second)*(it->second));
 		double signalsquare_mean = double(signal_square[it->first] / double(nofentries_perBin[it->first]));
-		bglevels.stdev_upstream[it->first] = sqrt((signalsquare_mean - mean_square));
+		bglevels.stdev_downstream[it->first] = sqrt((signalsquare_mean - mean_square));
 	}
 	
 	string FileName;

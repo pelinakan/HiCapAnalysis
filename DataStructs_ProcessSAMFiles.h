@@ -1,16 +1,13 @@
 struct InteractionStruct{
-	string chr; 
-	vector <int > REsites;
-	vector < int > position;
+	string chr;
+	int pos; // RE site
 	int distance; // Distance from TSS
-	int len; // Length of the interaction
-	int signal; // the number of reads
-	bool type; // 0.promoter-enhancer (PE) or 1.promoter-promoter (PP)
-};
-struct CenterBinStruct{
-			int nofpairs;
-			int recount;
-			double norm_signal;
+	double norm_signal; // the number of reads / the number of RE sites within the core promoter
+	char type; // U: upstream , D: downstream , X: inter-chromosomal
+	bool peakoverlap; // if there is a peak in that RE fragment
+	string peakprofile; // Peak profile in binary format
+	double mappability;
+	double p_val;
 };
 
 struct SignalStruct{ // This struct keeps the numbers of restriction fragments where there is at least one pair coming from a feature, one struct per chr
@@ -24,16 +21,16 @@ struct SignalStruct_CTX{ // This struct keeps the numbers restriction fragments 
 };
 struct PeakMap{
 	boost::unordered::unordered_set<int> peaks;
-	string maptochrname;
-};
+}; // each struct is a chromosome, chromosome names are mapped to struct indexes
 
 struct MetaPeakMap{ // Key is the closest REsite to the peak, if there is a particular peak 1 otherwise 0
 	boost::unordered::unordered_map<int, string > metapeaks;
-	string maptochrname;
 };
+boost::unordered::unordered_map<string, int> MetaPeakChrMap;
 
-struct promPromSignalStruct{
-	int promoter_index; // within proms struct
+
+struct FeattoFeatSignalStruct{
+	int feat_index; // within proms struct
 	double normsignal; // The number of reads within the core promoter of the interactor promoter
 };
 
@@ -41,8 +38,14 @@ struct FeatureStruct{
 	vector <int> ProbeIDs;
 	string FeatureType; //Promoter, NegCtrl, etc..
 	string chr;
-	vector < InteractionStruct > AllExperiments_IntBins;
-	vector < CenterBinStruct > centerbin;
+	int nofRESites; // how many restriction sites the core promoter contains, will be used to normalise the signal
+	double featmappability;
+	int *closestREsitenums; // offset of the closest RE sites on each side of the negctrl this will be used to index interactions 
+	int start;
+	int end;
+	vector < SignalStruct_CTX > Signals_CTX; // Each element of this vector will represent a chromosome
+	SignalStruct Signals; // Intra-chromosomal interactions 
+	vector < InteractionStruct > interactions;
 };
 
 struct GeneStruct: public FeatureStruct {
@@ -51,37 +54,28 @@ struct GeneStruct: public FeatureStruct {
 	vector <string> TranscriptName;
 	vector <int> isoformpromotercoords; 
 	int TSS; //Transcription Start Site
-	int gene_end; 
 	string strand;
 	double *expression;
-};
-
-struct NegativeControlStruct: public FeatureStruct{ 
-//Used for NegativeControls
-	string type; //genic or intergenic
-	int start; 
-	int end; 
-	int midpoint;
 };
 
 struct PromoterStruct: FeatureStruct{
 	vector < string > transcripts;
 	vector < string > genes;
+	double *expression;
 	string strand;
-	string chr;
-	int start;
-	int end;
 	int TSS;
-	int nofRESites; // how many restriction sites the core promoter contains, will be used to normalise the signal
 	bool sharedpromoter; 
 	vector < string > genes_sharingproms;
-	int *closestREsitenums; // offset of the closest RE sites on each side of the promoter this will be used to index interactions 
 	//restriction fragments will be numbered with respect to the closest site upstream [0] or downstream [1].
-	vector < SignalStruct_CTX > Signals_CTX; // Each element of this vector will represent a chromosome
-	SignalStruct Signals; // Intra-chromosomal interactions 
-	vector < promPromSignalStruct > promPromSignals; // Each element represent a promoter
+	vector < FeattoFeatSignalStruct > promPromSignals; // Each element represent a promoter
 };
-
+struct NegativeControlStruct: public FeatureStruct{ 
+//Used for NegativeControls
+	string type; //genic or intergenic
+	int midpoint;
+	//restriction fragments will be numbered with respect to the closest site upstream [0] or downstream [1].
+	vector < FeattoFeatSignalStruct > NegcNegcSignals; // Each element represent a negative control
+};
 struct PairStruct{
 	string chr_1;
 	string chr_2;
@@ -89,3 +83,29 @@ struct PairStruct{
 	int endcoord;
 };
 
+//For RE Sites
+struct REindexes{
+	vector <int> binstart;
+	vector <int> binend;
+	vector <int> offset;
+	vector <int> count;
+}; // each index struct will keep a chromosome
+
+struct Mappindexes{
+	vector <int> binstart;
+	vector <int> binend;
+	vector <int> offset;
+	vector <int> count;
+}; // each index struct will keep a chromosome
+
+
+struct BG_signals{
+
+	boost::unordered::unordered_map< int, double > mean_upstream;
+	boost::unordered::unordered_map< int, double > stdev_upstream;
+	boost::unordered::unordered_map< int, double > mean_downstream;
+	boost::unordered::unordered_map< int, double > stdev_downstream;
+
+	double a[2]; // a[0] is upstream a[1] is downstream (power law fit)
+	double b[2]; // b[0] is upstream b[1] is downstream (power law fit)
+};
