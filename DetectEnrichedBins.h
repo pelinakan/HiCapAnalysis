@@ -667,7 +667,7 @@ void DetectEnrichedBins::DetectSignicantFeatFeatInteractions(PromoterClass& prs,
 	for(int i = 0; i < ngs.NofNegCtrls; ++i){
 		vector< FeattoFeatSignalStruct >::const_iterator it; //first: REpos, second: signal 
 		for (it = ngs.negctrls[i].NegcNegcSignals.begin(); it != ngs.negctrls[i].NegcNegcSignals.end(); ++it){
-			double normsignal = (double(it->normsignal)) / prs.proms[i].nofRESites;
+		//	double normsignal = (double(it->normsignal)) / prs.proms[i].nofRESites;
 			if (it->normsignal > MinNumberofReads){
 				int nindex = it->feat_index;
 				outf2 << ngs.negctrls[i].chr << ":" << ngs.negctrls[i].start << "-" << ngs.negctrls[i].end << '\t' << ngs.negctrls[i].nofRESites << '\t' << ngs.negctrls[i].featmappability << '\t';
