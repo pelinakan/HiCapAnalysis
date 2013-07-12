@@ -6,12 +6,12 @@ public:
 int NofNegCtrls;
 void InitialiseData(void);
 void FillNegativeCtrls(RESitesClass&, MappabilityClass&);
-bool AnnotateWithNegCtrls(string,int,string,int,RESitesClass&, MappabilityClass&);
+bool AnnotateWithNegCtrls(string,int,string,int,RESitesClass&,int);
 void BinPeaks(int,int,int);
 
 private:
-	void AnnotateDistalInteractor(string, string,int*,int);
-	void AnnotateFeatFeatInteraction(int, int);
+	void AnnotateDistalInteractor(string, string,int*,int,int);
+	void AnnotateFeatFeatInteraction(int, int,int);
 
 
 };
@@ -73,7 +73,7 @@ NofNegCtrls=i-1;
 	}
 }
 
-bool NegCtrlClass::AnnotateWithNegCtrls(string p_chr_1, int pstcoord, string p_chr_2, int pendcoord,RESitesClass& dpnIIsites, MappabilityClass& mappability){
+bool NegCtrlClass::AnnotateWithNegCtrls(string p_chr_1, int pstcoord, string p_chr_2, int pendcoord,RESitesClass& dpnIIsites,int ExperimentNo){
 
 bool pann = false;
 
@@ -93,7 +93,7 @@ for(int i = 0; i < NofNegCtrls; ++i){ //Iterate over all refseq genes on that ch
 				if (negctrls[m].chr.compare(p_chr_2) == 0){
 					if((negctrls[m].start <= pendcoord && negctrls[m].end >= pendcoord)){ // If the pair is contained within another negative control
 						ncidx2 = m; // It is prom-prom interaction
-						AnnotateFeatFeatInteraction(ncidx1, ncidx2);
+						AnnotateFeatFeatInteraction(ncidx1, ncidx2,ExperimentNo);
 						return pann;
 					}
 				} 
@@ -101,7 +101,7 @@ for(int i = 0; i < NofNegCtrls; ++i){ //Iterate over all refseq genes on that ch
 			int *renums;
 			renums = new int [2];
 			dpnIIsites.GettheREPositions(p_chr_2,pendcoord,renums); // Get the fragment number of the distal interactor
-			AnnotateDistalInteractor(p_chr_1,p_chr_2,renums,ncidx1);
+			AnnotateDistalInteractor(p_chr_1,p_chr_2,renums,ncidx1,ExperimentNo);
 			return pann;
 		}
 	}
@@ -117,7 +117,7 @@ for(int m = 0; m < NofNegCtrls; ++m){ //Iterate over all refseq genes on that ch
 			int *renums;
 			renums = new int [2];
 			dpnIIsites.GettheREPositions(p_chr_1, pstcoord,renums); // Get the fragment number of the distal interactor (this is it is the first read)
-			AnnotateDistalInteractor(p_chr_2,p_chr_1,renums,ncidx2);
+			AnnotateDistalInteractor(p_chr_2,p_chr_1,renums,ncidx2,ExperimentNo);
 			return pann;
 		}
 	}			
@@ -125,20 +125,24 @@ for(int m = 0; m < NofNegCtrls; ++m){ //Iterate over all refseq genes on that ch
 return pann;
 }
 
-void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int *renums, int ncidx){
+void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int *renums, int ncidx,int ExperimentNo){
 
 	if(p_chr_1.compare(p_chr_2) == 0){ // Intra chromosomal interaction
 		if (renums[1] < negctrls[ncidx].closestREsitenums[0]){ // if upstream 
-			if(negctrls[ncidx].Signals.signal_ups.find(renums[0]) == negctrls[ncidx].Signals.signal_ups.end())
-				negctrls[ncidx].Signals.signal_ups[renums[0]] = 1; // add a new entry
+			if(negctrls[ncidx].Signals.signal_ups.find(renums[0]) == negctrls[ncidx].Signals.signal_ups.end()){
+				negctrls[ncidx].Signals.signal_ups[renums[0]] = new int[1]; // add a new entry
+				negctrls[ncidx].Signals.signal_ups[renums[0]][ExperimentNo] = 1;
+			}
 			else // if inserted before
-				negctrls[ncidx].Signals.signal_ups[renums[0]] = negctrls[ncidx].Signals.signal_ups[renums[0]] + 1;
+				negctrls[ncidx].Signals.signal_ups[renums[0]][ExperimentNo] = negctrls[ncidx].Signals.signal_ups[renums[0]][ExperimentNo] + 1;
 		}
 		else{
-			if(negctrls[ncidx].Signals.signal_down.find(renums[0]) == negctrls[ncidx].Signals.signal_down.end())
-				negctrls[ncidx].Signals.signal_down[renums[0]] = 1; // add a new entry
+			if(negctrls[ncidx].Signals.signal_down.find(renums[0]) == negctrls[ncidx].Signals.signal_down.end()){
+				negctrls[ncidx].Signals.signal_down[renums[0]] = new int[1]; // add a new entry
+				negctrls[ncidx].Signals.signal_down[renums[0]][ExperimentNo] = 1;
+			}
 			else // if inserted before
-				negctrls[ncidx].Signals.signal_down[renums[0]] = negctrls[ncidx].Signals.signal_down[renums[0]] + 1;
+				negctrls[ncidx].Signals.signal_down[renums[0]] += 1;
 		}		
 	}
 	else{ // inter chromosomal interaction
@@ -146,10 +150,12 @@ void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int 
 		vector < SignalStruct_CTX >::iterator it;
 		for(it = negctrls[ncidx].Signals_CTX.begin(); it < negctrls[ncidx].Signals_CTX.end(); ++it){
 			if (p_chr_2.compare(it->maptochrname) == 0){
-				if(it->signal.find(renums[0]) == it->signal.end())
-					it->signal[renums[0]] = 1; // add a new entry
+				if(it->signal.find(renums[0]) == it->signal.end()){
+					it->signal[renums[0]] = new int[1]; // add a new entry
+					it->signal[renums[0]][ExperimentNo] = 1;
+				}
 				else // if inserted before
-					it->signal[renums[0]] = it->signal[renums[0]] + 1;
+					it->signal[renums[0]][ExperimentNo] += 1;
 				chrfound = 1;
 				break;
 			}
@@ -157,16 +163,17 @@ void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int 
 		if(!chrfound){
 			negctrls[ncidx].Signals_CTX.push_back(SignalStruct_CTX());
 			negctrls[ncidx].Signals_CTX.back().maptochrname = p_chr_2;
-			negctrls[ncidx].Signals_CTX.back().signal[renums[0]] = 1;
+			negctrls[ncidx].Signals_CTX.back().signal[renums[0]] = new int[1];
+			negctrls[ncidx].Signals_CTX.back().signal[renums[0]][ExperimentNo] = 1;
 		}
 	}
 }
 
-void NegCtrlClass::AnnotateFeatFeatInteraction(int ncidx1, int ncidx2){
+void NegCtrlClass::AnnotateFeatFeatInteraction(int ncidx1, int ncidx2,int ExperimentNo){
 	bool foundbefore = 0;	
 	for (int x = 0; x < negctrls[ncidx1].NegcNegcSignals.size(); ++x){ // Check if the interaction with that promoter is seen before
 		if (negctrls[ncidx1].NegcNegcSignals[x].feat_index == ncidx2){
-			negctrls[ncidx1].NegcNegcSignals[x].normsignal += 1.0;
+			negctrls[ncidx1].NegcNegcSignals[x].normsignal[ExperimentNo] += 1.0;
 			foundbefore = 1;
 			break;
 		}
@@ -174,7 +181,7 @@ void NegCtrlClass::AnnotateFeatFeatInteraction(int ncidx1, int ncidx2){
 	if(!foundbefore){ // Create a new entry for that promoter
 		negctrls[ncidx1].NegcNegcSignals.push_back(FeattoFeatSignalStruct());
 		negctrls[ncidx1].NegcNegcSignals.back().feat_index = ncidx2;
-		negctrls[ncidx1].NegcNegcSignals.back().normsignal += 1.0;
+		negctrls[ncidx1].NegcNegcSignals.back().normsignal[ExperimentNo] += 1.0;
 	}
 }
 /*

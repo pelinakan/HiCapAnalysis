@@ -21,13 +21,14 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 //	ofstream tempf("Mappabilities.txt");
 	// Upstream
 	for(int i = 0; i < prs.NofPromoters; ++i){
-		cout << i << '\t' << prs.proms[i].transcripts[0] << '\t';
 //		outf1 << prs.proms[i].genes[0] << '\t' << prs.proms[i].chr << ":" << prs.proms[i].start << "-" << prs.proms[i].end << '\t' << prs.proms[i].strand << '\t' << prs.proms[i].nofRESites << '\t';
 		boost::unordered::unordered_map<int, int* >::const_iterator it; //first: REpos, second: signal 
 		for (it = prs.proms[i].Signals.signal_ups.begin(); it != prs.proms[i].Signals.signal_ups.end(); ++it){
+//			double normsignal = (double(it->second)) / prs.proms[i].nofRESites;
 			double normsignal = (double(it->second[ExperimentNo]));
 			if (it->second[0] > MinNumberofReads){
-				double m = mapp.GetMappability(prs.proms[i].chr, (it->first - 100), 200);	
+				double m = mapp.GetMappability(prs.proms[i].chr, (it->first - 100), 200);
+	//			tempf << prs.proms[i].chr << ":" << (it->first - 100) << "-" << (it->first + 100) << '\t' << m << endl;
 				if (m > Mappability_Threshold){
 					double q, p_value;
 					int dist;
@@ -65,6 +66,7 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 		}
 	//Downstream
 		for (it = prs.proms[i].Signals.signal_down.begin(); it != prs.proms[i].Signals.signal_down.end(); ++it){
+		//	double normsignal = (double(it->second)) / prs.proms[i].nofRESites;
 			double normsignal = (double(it->second[ExperimentNo]));		
 			if( normsignal > MinNumberofReads){ //signal is greater than the min number of reads
 				double m = mapp.GetMappability(prs.proms[i].chr, (it->first - 100), 200);
@@ -125,98 +127,69 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 				}
 			}
 		}
-		cout << prs.proms[i].interactions.size() << endl;
 //		outf1 << endl;
 	}
 }
 void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string BaseFileName, RESitesClass& dpnII){
-	cout << "Associating with peaks" << endl;
+
 	for(int i = 0; i < prs.NofPromoters; ++i){
-		cout << i << '\t' << prs.proms[i].interactions.size() << '\t' ;
 		for(int j = 0; j < prs.proms[i].interactions.size(); ++j){
-			bool peakfound = 0, refound = 0;
+			bool peakfound = 0;
 			int *renums;
 			renums = new int [2];
 			if(prs.proms[i].interactions[j].type == 'D'){
-				refound = dpnII.GettheREPositions(prs.proms[i].chr,prs.proms[i].interactions[j].pos[0],renums); // Interactor RE fragment
-				if(refound)
-					prs.proms[i].interactions[j].pos[1] = renums[1];
-				else{
-					prs.proms[i].interactions[j].peakoverlap = false;
-				}
+				dpnII.GettheREPositions(prs.proms[i].chr,prs.proms[i].interactions[j].pos[0],renums); // Interactor RE fragment
+				prs.proms[i].interactions[j].pos[1] = renums[1];				
 			}
-			else{ // Upstream
-				refound = dpnII.GettheREPositions(prs.proms[i].chr,(prs.proms[i].interactions[j].pos[0] - 1),renums); // Interactor RE fragment
-				if(refound)
-					prs.proms[i].interactions[j].pos[1] = renums[0];	
-				else
-					prs.proms[i].interactions[j].peakoverlap = false;
+			else{
+				dpnII.GettheREPositions(prs.proms[i].chr,(prs.proms[i].interactions[j].pos[0] - 1),renums); // Interactor RE fragment
+				prs.proms[i].interactions[j].pos[1] = renums[0];				
 			}
 			boost::unordered::unordered_map<string, int>::const_iterator citer = MetaPeakChrMap.find(prs.proms[i].interactions[j].chr);
-			if(refound && !(MetaPeakChrMap.find(prs.proms[i].interactions[j].chr) == MetaPeakChrMap.end()) ){ // Find the right peak map wrt chromosome
-				if(metaPeaks[citer->second].metapeaks.find(prs.proms[i].interactions[j].pos[0]) != metaPeaks[citer->second].metapeaks.end()){
-					//If there is peak
-					boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(prs.proms[i].interactions[j].pos[0]);
-					prs.proms[i].interactions[j].peakoverlap = true;
-					prs.proms[i].interactions[j].peakprofile = it->second;
-					peakfound = 1;
-				}
-				else{
-					int *repos;
-					repos = new int [2];
-					refound = dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(prs.proms[i].interactions[j].pos[0] - 1),repos);
-					if(refound){
-						do{
-							if(metaPeaks[citer->second].metapeaks.find(repos[0]) != metaPeaks[citer->second].metapeaks.end()){
-								//If there is peak
-								boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(repos[0]);
-								prs.proms[i].interactions[j].peakoverlap = true;
-								prs.proms[i].interactions[j].peakprofile = it->second;
-								peakfound = 1;
-								break;
-							}
-							else{
-								refound = dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(repos[0] - 1),repos);
-								if(!refound){
-									prs.proms[i].interactions[j].peakoverlap = false;
-									break;
-								}
-							}
-						}while((abs(repos[0] - prs.proms[i].interactions[j].pos[0]) < 1000));
+			if (MetaPeakChrMap.find(prs.proms[i].interactions[j].chr) == MetaPeakChrMap.end()) // Find the right peak map wrt chromosome
+				break;
+			if(metaPeaks[citer->second].metapeaks.find(prs.proms[i].interactions[j].pos[0]) != metaPeaks[citer->second].metapeaks.end()){
+				//If there is peak
+				boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(prs.proms[i].interactions[j].pos[0]);
+				prs.proms[i].interactions[j].peakoverlap = true;
+				prs.proms[i].interactions[j].peakprofile = it->second;
+				peakfound = 1;
+			}
+			else{
+				int *repos;
+				repos = new int [2];
+				dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(prs.proms[i].interactions[j].pos[0] - 1),repos);
+				do{
+					if(metaPeaks[citer->second].metapeaks.find(repos[0]) != metaPeaks[citer->second].metapeaks.end()){
+						//If there is peak
+						boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(repos[0]);
+						prs.proms[i].interactions[j].peakoverlap = true;
+						prs.proms[i].interactions[j].peakprofile = it->second;
+						peakfound = 1;
+						break;
 					}
 					else
-						prs.proms[i].interactions[j].peakoverlap = false;
-					
-					if(!peakfound){
-						refound = dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(prs.proms[i].interactions[j].pos[0]),repos);
-						if(refound){
-							do{
-								if(metaPeaks[citer->second].metapeaks.find(repos[1]) != metaPeaks[citer->second].metapeaks.end()){
-									//If there is peak
-									boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(repos[1]);
-									prs.proms[i].interactions[j].peakoverlap = true;
-									prs.proms[i].interactions[j].peakprofile = it->second;
-									peakfound = 1;
-									break;
-								}
-								else{
-									refound = dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(repos[1]),repos);
-									if(!refound){
-										prs.proms[i].interactions[j].peakoverlap = false;
-										break;
-									}
-								}
-							}while ( abs(repos[1] - prs.proms[i].interactions[j].pos[0]) < 1000 );
+						dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(repos[0] - 1),repos);
+				}while((abs(repos[0] - prs.proms[i].interactions[j].pos[0]) < 1000));
+				if(!peakfound){
+					dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(prs.proms[i].interactions[j].pos[0]),repos);
+					do{
+						if(metaPeaks[citer->second].metapeaks.find(repos[1]) != metaPeaks[citer->second].metapeaks.end()){
+							//If there is peak
+							boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(repos[1]);
+							prs.proms[i].interactions[j].peakoverlap = true;
+							prs.proms[i].interactions[j].peakprofile = it->second;
+							peakfound = 1;
+							break;
 						}
 						else
-							prs.proms[i].interactions[j].peakoverlap = false;
-					}
-					if (!peakfound)
-						prs.proms[i].interactions[j].peakoverlap = false;
+							dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(repos[1]),repos);
+					}while ( abs(repos[1] - prs.proms[i].interactions[j].pos[0]) < 1000 );
 				}
+				if (!peakfound)
+					prs.proms[i].interactions[j].peakoverlap = false;
 			}
 		}
-		cout << "done" << endl;
 	}
 }
 void DetectEnrichedBins::DetectEnrichedInteractionBins_NegCtrls(NegCtrlClass &ngs,DetermineBackgroundLevels background,string BaseFileName,int ExperimentNo){
@@ -310,21 +283,18 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins_NegCtrls(NegCtrlClass &ng
 	}
 }
 void DetectEnrichedBins::AssociatePeaksWithIntBins_NegCtrls(NegCtrlClass& ngs,string BaseFileName,RESitesClass& dpnII){
-	
-cout << "Associating with peaks negative controls" << '\t';
-for(int i = 0; i < ngs.NofNegCtrls; ++i){
-	cout << i << '\t' << ngs.negctrls[i].interactions.size() << '\t';
-	for(int j = 1; j < ngs.negctrls[i].interactions.size(); ++j){
-		int *renums;
-		bool peakfound = 0, refound;
-		renums = new int [2];
-		refound = dpnII.GettheREPositions(ngs.negctrls[i].chr,ngs.negctrls[i].interactions[j].pos[0],renums); // Interactor RE fragment
-		if(refound)
+
+	for(int i = 0; i < ngs.NofNegCtrls; ++i){
+		for(int j = 1; j < ngs.negctrls[i].interactions.size(); ++j){
+			int *renums;
+			renums = new int [2];
+			dpnII.GettheREPositions(ngs.negctrls[i].chr,ngs.negctrls[i].interactions[j].pos[0],renums); // Interactor RE fragment
 			ngs.negctrls[i].interactions[j].pos[1] = renums[1];				
-		else
-			ngs.negctrls[i].interactions[j].peakoverlap = "NoPeakOverlap";				
-		boost::unordered::unordered_map<string, int>::const_iterator citer = MetaPeakChrMap.find(ngs.negctrls[i].chr);
-		if (refound && !(MetaPeakChrMap.find(ngs.negctrls[i].chr) == MetaPeakChrMap.end())){
+
+			bool peakfound = 0;
+			boost::unordered::unordered_map<string, int>::const_iterator citer = MetaPeakChrMap.find(ngs.negctrls[i].chr);
+			if (MetaPeakChrMap.find(ngs.negctrls[i].chr) == MetaPeakChrMap.end())
+				break;
 			if(metaPeaks[citer->second].metapeaks.find(ngs.negctrls[i].interactions[j].pos[0]) != metaPeaks[citer->second].metapeaks.end()){
 				//If there is peak
 				boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(ngs.negctrls[i].interactions[j].pos[0]);
@@ -335,60 +305,39 @@ for(int i = 0; i < ngs.NofNegCtrls; ++i){
 			else{
 				int *repos;
 				repos = new int [2];
-				refound = dpnII.GettheREPositions(ngs.negctrls[i].interactions[j].chr,(ngs.negctrls[i].interactions[j].pos[0] - 1),repos);
-				if(refound){
+				dpnII.GettheREPositions(ngs.negctrls[i].interactions[j].chr,(ngs.negctrls[i].interactions[j].pos[0] - 1),repos);
+				do{
+					if(metaPeaks[citer->second].metapeaks.find(repos[0]) != metaPeaks[citer->second].metapeaks.end()){
+						//If there is peak
+						boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(repos[0]);
+						ngs.negctrls[i].interactions[j].peakoverlap = true;
+						ngs.negctrls[i].interactions[j].peakprofile = it->second;
+						peakfound = 1;
+						break;
+					}
+					else
+						dpnII.GettheREPositions(ngs.negctrls[i].interactions[j].chr,(repos[0] - 1),repos);
+				}while((abs(repos[0] - ngs.negctrls[i].interactions[j].pos[0]) < 1000));
+				if(!peakfound){
+					dpnII.GettheREPositions(ngs.negctrls[i].interactions[j].chr,ngs.negctrls[i].interactions[j].pos[0],repos);
 					do{
-						if(metaPeaks[citer->second].metapeaks.find(repos[0]) != metaPeaks[citer->second].metapeaks.end()){
+						if(metaPeaks[citer->second].metapeaks.find(repos[1]) != metaPeaks[citer->second].metapeaks.end()){
 							//If there is peak
-							boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(repos[0]);
+							boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(repos[1]);
 							ngs.negctrls[i].interactions[j].peakoverlap = true;
 							ngs.negctrls[i].interactions[j].peakprofile = it->second;
 							peakfound = 1;
 							break;
 						}
-						else{
-							refound = dpnII.GettheREPositions(ngs.negctrls[i].interactions[j].chr,(repos[0] - 1),repos);
-							if(!refound){
-								ngs.negctrls[i].interactions[j].peakoverlap = false;
-								break;
-							}
-						}
-					}while((abs(repos[0] - ngs.negctrls[i].interactions[j].pos[0]) < 1000));
-				}
-				else
-					ngs.negctrls[i].interactions[j].peakoverlap = false;
-				
-				if(!peakfound){
-					refound = dpnII.GettheREPositions(ngs.negctrls[i].interactions[j].chr,ngs.negctrls[i].interactions[j].pos[0],repos);
-					if(refound){
-						do{
-							if(metaPeaks[citer->second].metapeaks.find(repos[1]) != metaPeaks[citer->second].metapeaks.end()){
-								//If there is peak
-								boost::unordered::unordered_map<int, string >::const_iterator it = metaPeaks[citer->second].metapeaks.find(repos[1]);
-								ngs.negctrls[i].interactions[j].peakoverlap = true;
-								ngs.negctrls[i].interactions[j].peakprofile = it->second;
-								peakfound = 1;
-								break;
-							}
-							else{
-								refound = dpnII.GettheREPositions(ngs.negctrls[i].interactions[j].chr,(repos[1]),repos);
-								if(!refound){
-									ngs.negctrls[i].interactions[j].peakoverlap = false;
-									break;					
-								}
-							}
-						}while ( abs(repos[1] - ngs.negctrls[i].interactions[j].pos[0]) < 1000 );
-					}
-					else
-						ngs.negctrls[i].interactions[j].peakoverlap = false;
+						else
+							dpnII.GettheREPositions(ngs.negctrls[i].interactions[j].chr,(repos[1]),repos);
+					}while ( abs(repos[1] - ngs.negctrls[i].interactions[j].pos[0]) < 1000 );
 				}
 				if (!peakfound)
 					ngs.negctrls[i].interactions[j].peakoverlap = false;
 			}			
 		}
-		cout << "done" << endl;
 	}
-}
 }
 
 void DetectEnrichedBins::SummariseInteractions(PromoterClass& prs, NegCtrlClass& ngs, string BaseFileName, int CellType, ofstream& SummaryFile){
@@ -587,8 +536,8 @@ void DetectEnrichedBins::PrintAllInteractions(PromoterClass& prs, NegCtrlClass& 
 		<< "Promoter chr" << '\t' << "Promoter TSS"  << '\t' << "Strand" << '\t' <<"Promoter UCSC" << '\t' << "Interactor chr" << '\t' << "Interactor REsite1" << '\t' << "Interactor REsite2" << '\t'
 		<< "Interactor Mappability (100 bases around the RE site)" << '\t' << "Distance" << '\t';
 	for (int e = 0; e < NumberofExperiments; ++e)
-		outf1 << ExperimentNames[e] << "_SuppPairs" << '\t' << ExperimentNames[e] << "_pval" << '\t';
-	outf1 << "Peak Profile" << endl;
+		outf1 << ExperimentNames[e] << "_SuppPairs" << '\t' << ExperimentNames[e] << "_pval" ;
+	outf1 << '\t' << "Peak Profile" << endl;
 
 	for(int i = 0; i < prs.NofPromoters; ++i){
 		for(int j = 0; j < prs.proms[i].interactions.size(); ++j){
@@ -626,8 +575,8 @@ void DetectEnrichedBins::PrintAllInteractions(PromoterClass& prs, NegCtrlClass& 
 	outf2 << "NegCtrl ID" << '\t' << "NegCtrl UCSC" << '\t' << "Number of RE sites within core feature" << '\t' << "Interactor Chr " << '\t' << "Interactor RE site1" << '\t' << "Interactor RE site2" << '\t'
 		<< "Distance" << '\t';
 	for (int e = 0; e < NumberofExperiments; ++e)
-		outf2 << ExperimentNames[e] << "_SuppPairs" << '\t';
-	outf2 << "Peak Profile" << endl;
+		outf2 << ExperimentNames[e] << "_SuppPairs";
+	outf2 << '\t' << "Peak Profile" << endl;
 
 	for(int i = 0; i < ngs.NofNegCtrls; ++i){
 		for(int j = 1; j < ngs.negctrls[i].interactions.size(); ++j){
@@ -695,7 +644,7 @@ void DetectEnrichedBins::PrintAllInteractions(PromoterClass& prs, NegCtrlClass& 
 	FileName4.append(BaseFileName);
 	FileName4.append("SignificantInteractions_NegCtrlstoNegCtrls");
 	FileName4.append(".txt");
-	ofstream outf4(FileName4.c_str());
+	ofstream outf4(FileName2.c_str());
 
 	outf4 << "Negctrl1 UCSC" << '\t' << "Number of RE sites within negative ctrl (3000 bases)" << '\t' << "Mappability of negative controls (3000 bases)" << '\t'
 		<< "Negctrl2 UCSC" << '\t' << "Number of RE sites within negative ctrl (3000 bases)" << '\t' << "Mappability of negative controls (3000 bases)" << '\t';
@@ -712,8 +661,8 @@ void DetectEnrichedBins::PrintAllInteractions(PromoterClass& prs, NegCtrlClass& 
 			outf4 << ngs.negctrls[i].chr << ":" << ngs.negctrls[i].start << "-" << ngs.negctrls[i].end << '\t' << ngs.negctrls[i].nofRESites << '\t' << ngs.negctrls[i].featmappability << '\t';
 			outf4 << ngs.negctrls[nindex].chr << ":" << ngs.negctrls[nindex].start << "-" << ngs.negctrls[nindex].end << '\t' << ngs.negctrls[nindex].nofRESites << '\t' << ngs.negctrls[nindex].featmappability << '\t';
 			for (int e = 0; e < NumberofExperiments; ++e)
-				outf4 << it->normsignal[e] << '\t';
-			outf4 << endl;
+				outf3 << it->normsignal[e] << '\t';
+			outf3 << endl;
 		}		
 	}
 outf4.close();

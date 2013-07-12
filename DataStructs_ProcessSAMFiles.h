@@ -1,22 +1,23 @@
 struct InteractionStruct{
 	string chr;
-	int pos; // RE site
+	int pos[2]; // RE site
 	int distance; // Distance from TSS
-	double norm_signal; // the number of reads / the number of RE sites within the core promoter
+	int supp_pairs[4]; // the number of reads / the number of RE sites within the core promoter
 	char type; // U: upstream , D: downstream , X: inter-chromosomal
 	bool peakoverlap; // if there is a peak in that RE fragment
 	string peakprofile; // Peak profile in binary format
 	double mappability;
-	double p_val;
+	double p_val[4];
 };
 
 struct SignalStruct{ // This struct keeps the numbers of restriction fragments where there is at least one pair coming from a feature, one struct per chr
-	boost::unordered::unordered_map<int, int> signal_ups; // upstream of the promoter activation direction
-	boost::unordered::unordered_map<int, int> signal_down; // downstream of the promoter activation direction
+	boost::unordered::unordered_map<int, int* > signal_ups; // upstream of the promoter activation direction
+	boost::unordered::unordered_map<int, int* > signal_down; // downstream of the promoter activation direction
+//	boost::unordered::unordered_map<int, float> distance; // Distance of the interaction
 };
 
 struct SignalStruct_CTX{ // This struct keeps the numbers restriction fragments where there is at least one pair coming from a feature, one struct per chr
-	boost::unordered::unordered_map<int, int > signal; 
+	boost::unordered::unordered_map<int, int* > signal; 
 	string maptochrname;
 };
 struct PeakMap{
@@ -31,7 +32,7 @@ boost::unordered::unordered_map<string, int> MetaPeakChrMap;
 
 struct FeattoFeatSignalStruct{
 	int feat_index; // within proms struct
-	double normsignal; // The number of reads within the core promoter of the interactor promoter
+	double normsignal[4]; // The number of reads within the core promoter of the interactor promoter
 };
 
 struct FeatureStruct{
@@ -81,6 +82,7 @@ struct PairStruct{
 	string chr_2;
 	int startcoord;
 	int endcoord;
+	int flagged;
 };
 
 //For RE Sites

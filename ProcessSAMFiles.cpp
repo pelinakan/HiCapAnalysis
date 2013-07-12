@@ -18,16 +18,17 @@
 #include <boost/unordered/unordered_set.hpp>
 using namespace std;
 
+#include "api/BamMultiReader.h"
+#include "api/BamWriter.h"
+using namespace BamTools;
+
 #ifdef _CHAR16T //redefined definition problem
 #define CHAR16_T
 #endif
 
-<<<<<<< HEAD
 #define BOOST_DISABLE_ASSERTS
 #define NDEBUG
 
-=======
->>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 // disable some irrelevant warnings
 #if (AE_COMPILER==AE_MSVC)
 #pragma warning(disable:4100)
@@ -52,21 +53,30 @@ using namespace alglib_impl;
 #pragma warning(disable: 4244) // possible loss of data
 #pragma warning(disable: 4715) // not all control paths return a value
 
+#include "api/api_global.h"
+#include "api/BamAlignment.h"
+#include "api/BamMultiReader.h"
+#include "api/BamReader.h"
+#include "api/BamAlignment.h"
+#include "api/SamConstants.h"
+#include "api/SamProgramChain.h"
+#include "api/SamReadGroup.h"
+#include "api/SamReadGroupDictionary.h"
+#include "api/SamSequence.h"
+#include "api/SamSequenceDictionary.h"
+
 #define UNIX
 //#define WINDOWS
 //#define GraphGC
 string dirname = "/bubo/home/h20/pelin/3Cproj/bin/supportingFiles/";
 string wdirname = "C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\PeakFiles\\";
-<<<<<<< HEAD
 string ExpFileName;
-=======
 
->>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 int MinimumJunctionDistance; // To be entered by the user
 int MinNumberofReads; // To be entered by the user
 int CellType; // 0:mES, 1:XEN, 2:TS // read from the experiments file
 int TotalNumberofPairs = 0;
-const int BUFFERSIZE = 4000000;
+const int BUFFERSIZE = 10000000;
 const int ClusterPromoters = 1000; //Cluster Promoters of Isoforms that are 500 bp away from each other
 const int coreprom_upstream = 2500;
 const int coreprom_downstream = 500;
@@ -74,9 +84,11 @@ const double SignificanceThreshold = 0.001;
 const int AssociateInteractions = 1500; //decide if an interaction come from a feature (used for negativecontrols)
 int padding = 700; //For Sequence Capture Probes
 double ExpressionThr = 2.0;
+double Mappability_Threshold = 0.5;
 const 	int BinSize  = 1000; // Only To Calculate Background Interaction Frequencies
 const int NumberofGenes = 35000;
 const int IsoformCount = 10; // Maximum number of isoforms
+const int MaxInsertLen = 700; // To exclude pairs associated with very distal RE sites
 
 #include "linear.h"
 #include "DataStructs_ProcessSAMFiles.h"
@@ -90,7 +102,7 @@ const int IsoformCount = 10; // Maximum number of isoforms
 #include "AnnotateProms_with_PeakFiles.h"
 #include "MetaPeakCollection.h"
 #include "AssociateProbeswithFeatures.h"
-#include "ProcessSAMFiles.h"
+#include "ProcessBAMFiles.h"
 #include "BackgroundInteractionFrequency.h"
 #include "DetectEnrichedBins.h"
 #include "CompareExperiments.h"
@@ -98,11 +110,18 @@ const int IsoformCount = 10; // Maximum number of isoforms
 #include "LaminB1.h"
 
 int main (int argc,char* argv[]){
-
+/*
+	RESitesClass dpnIIs;
+	dpnIIs.InitialiseVars();
+	int *renums;
+	renums = new int [2];
+	dpnIIs.GettheREPositions("chr1",197195432,renums);
+	return 0;
+*/
+	string BaseFileName;
 #ifdef UNIX
 
-<<<<<<< HEAD
-	if (argc < 4) {
+	if (argc < 5) {
 		print_usage();
 		return -1;
 	}
@@ -111,13 +130,14 @@ int main (int argc,char* argv[]){
 	MinNumberofReads = atoi(argv[2]);
 	MinNumberofReads = double(MinNumberofReads);
 	MinimumJunctionDistance = atoi(argv[3]);
+	BaseFileName = argv[4];
+
 
 	cout << "Min Number of Pairs      " << MinNumberofReads << endl;
 	cout << "Min Junction Distance    " << MinimumJunctionDistance << endl;
 #endif
 #ifdef WINDOWS
 	ExpFileName = "Experiments.txt";
-=======
 	if (argc < 3) {
 		print_usage();
 		return -1;
@@ -128,22 +148,18 @@ int main (int argc,char* argv[]){
 
 	cout << "Min Number of Pairs      " << MinNumberofReads << endl;
 	cout << "Min Junction Distance    " << MinimumJunctionDistance << endl;
->>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 #endif
 /////////////////////////////////////////////////////////One-time use functions
 	//	CompareExperiments intersectExp;
 	//	intersectExp.readandCompare();
-<<<<<<< HEAD
 
 	//	EnhancerPositions();
 
 //	LaminB1Class LaminB1;
-=======
 
 	//	EnhancerPositions();
 
 	LaminB1Class LaminB1;
->>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
 /////////////////////////////////////////////////////////
 
 //   --        INITIALISE CLASSES   --
@@ -151,7 +167,7 @@ int main (int argc,char* argv[]){
 	NegCtrlClass NegativeControls;
 	ProbeSet mm9probes;
 	DetermineBackgroundLevels background;
-	ProcessSAM samfile;
+	ProcessBAM bamfile;
 	DetectEnrichedBins EnrichedBins;
 
 	MappabilityClass mapp;
@@ -168,63 +184,60 @@ int main (int argc,char* argv[]){
 	cout << "Negative Controls Annotated" << endl;
 
 /////////////////////////////////////////////////////////One time use functions
-<<<<<<< HEAD
+//	LaminB1.CalculateGeneLaminValues(Promoters); 
+
+/////////////////////////////////////////////////////////
+
 //	LaminB1.CalculateGeneLaminValues(Promoters); 
 
 /////////////////////////////////////////////////////////
 
 	ReadMetaPeakFile(); // If peaks are already processed.
-	ifstream ExpFile(ExpFileName.c_str()); // Experiment Names and details
-	string SAMFILENAME, BaseFileName;
-	ExpFile >> SAMFILENAME >> BaseFileName >> CellType;
-	while (SAMFILENAME != ("END")){ // Reads all the pairs in each experiment and fills the interaction maps
-		cout << SAMFILENAME << "     will be read" << endl;
-		samfile.ProcessTheSAMFile(Promoters,NegativeControls,mm9probes,SAMFILENAME);
-		ExpFile >> SAMFILENAME >> BaseFileName >> CellType;
-	}
-	cout << "ALL SAMFILES READ " << endl;
-=======
-	LaminB1.CalculateGeneLaminValues(Promoters); 
 
-/////////////////////////////////////////////////////////
 
-	return 1;
-
-	ReadMetaPeakFile(); // If peaks are already processed.
+#ifdef WINDOWS
 	ifstream ExpFile("Experiments.txt"); // Experiment Names and details
-	string SAMFILENAME, BaseFileName;
+#endif
+#ifdef UNIX
+	ifstream ExpFile(ExpFileName.c_str());
+#endif
+	string BAMFILENAME, ExperimentName;
+	vector < string > ExperimentNames;
+	int ExperimentNo = 0;
+	ExpFile >> BAMFILENAME >> ExperimentName >> CellType;
 	do{ // Reads all the pairs in each experiment and fills the interaction maps
-		ExpFile >> SAMFILENAME >> BaseFileName >> CellType;
-		cout << SAMFILENAME << "     will be read" << endl;
-		samfile.ProcessTheSAMFile(Promoters,NegativeControls,mm9probes,SAMFILENAME);
-	}while(!(ExpFile.eof()));
-	cout << "SAMFILES READ " << endl;
->>>>>>> 95a9108d132a134505bfacc1093538dd278d0ab0
+		ExperimentNames.push_back(ExperimentName);
+		cout << BAMFILENAME << "     will be read" << endl;
+		bamfile.ProcessTheBAMFile(Promoters,NegativeControls,mm9probes,BAMFILENAME, ExperimentNo);
+		
+		cout << "Detecting Interactions";
+		background.CalculateMeanandStdRegress(NegativeControls, ExperimentName); 
+		cout << ". ";
+		
+		EnrichedBins.DetectEnrichedInteractionBins(Promoters,background,ExperimentName,ExperimentNo);
+		cout << ". ";
+		EnrichedBins.AssociatePeaksWithIntBins(Promoters,ExperimentName,dpnIIsites);
+		cout << ". ";
 
-	background.CalculateMeanandStdRegress(NegativeControls, BaseFileName); 
-	cout << " Background Levels Calculated " << endl;
+		EnrichedBins.DetectEnrichedInteractionBins_NegCtrls(NegativeControls,background,ExperimentName,ExperimentNo);
+		cout << ". ";
 
-	EnrichedBins.DetectEnrichedInteractionBins(Promoters,background,BaseFileName);
-	EnrichedBins.AssociatePeaksWithIntBins(Promoters,BaseFileName,dpnIIsites);
+		EnrichedBins.AssociatePeaksWithIntBins_NegCtrls(NegativeControls,ExperimentName,dpnIIsites);
+		cout << "finished" << endl;
+		
+		cout << "Cleaning the background" << endl;
+		background.bglevels.mean_downstream.clear();
+		background.bglevels.mean_upstream.clear();
+		background.bglevels.stdev_downstream.clear();
+		background.bglevels.stdev_upstream.clear();
+		++ExperimentNo;
+		cout << BAMFILENAME << "     finished" << endl;
+		ExpFile >> BAMFILENAME >> ExperimentName >> CellType;
+	}while(BAMFILENAME!="END");
 
-	EnrichedBins.DetectEnrichedInteractionBins_NegCtrls(NegativeControls,background,BaseFileName);
-	EnrichedBins.AssociatePeaksWithIntBins_NegCtrls(NegativeControls,BaseFileName,dpnIIsites);
+	int NofofExperiments = ExperimentNo;
 
-	EnrichedBins.DetectSignicantFeatFeatInteractions(Promoters, NegativeControls, BaseFileName);
+	EnrichedBins.PrintAllInteractions(Promoters,NegativeControls,BaseFileName, NofofExperiments, ExperimentNames);
 
-	string FileName;
-	FileName.append(BaseFileName);
-	FileName.append("Summary.txt");
-	ofstream outf(FileName.c_str());
-	outf << "Base File Name" << '\t' << BaseFileName << endl;
-	outf << "Number of promoters" << '\t' << Promoters.NofPromoters << endl;
-	outf << "Number of genes" << '\t' << Promoters.NofGenes << endl;
-	outf << "Number of pairs processed" << '\t' << TotalNumberofPairs << endl;
-	outf << "Minimum number of pair required to call an interaction" << '\t' << MinNumberofReads << endl;
-	outf << "Minimum Junction Distance" << '\t' << MinimumJunctionDistance << endl;
-
-	EnrichedBins.SummariseInteractions(Promoters,NegativeControls,BaseFileName,0,outf);
-
-	dpnIIsites.CleanClass();
 
 }

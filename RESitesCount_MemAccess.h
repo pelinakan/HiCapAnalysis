@@ -4,6 +4,8 @@ public :
 	int span;
 	vector <string> chr_names;
 	boost::unordered::unordered_map< string, int > chroffsets_indexfile;
+	boost::unordered::unordered_map<string, int > chr_starts; // first RE site
+	boost::unordered::unordered_map<string, int > chr_ends; // last RE site
 	vector < REindexes > indexes;
 	vector < int > posvector;
 	void InitialiseVars(void);
@@ -38,6 +40,7 @@ chr_names.push_back(chrp);
 chrstart = (pos ); // chromosome start
 indexes.push_back(REindexes());
 chroffsets_indexfile[chrp] = (indexes.size()-1);
+chr_starts[chrp] = chrstart;
 while(!(RESitesf.eof())){
 	int binstart = (pos);
 	int binend = binstart + span;
@@ -51,18 +54,20 @@ while(!(RESitesf.eof())){
 		}
 	}
 	if(indexes.back().binend.empty())
-		indexes.back().binstart.push_back(1);
+		indexes.back().binstart.push_back(chrstart);
 	else
 		indexes.back().binstart.push_back((indexes.back().binend.back())+1);
-	indexes.back().binend.push_back((binend + 1));
+	indexes.back().binend.push_back((posvector.back() + 1));
 	indexes.back().offset.push_back(startpos);
 	indexes.back().count.push_back((posvector.size()-startpos));
 	if((chrname != chrp) || f ){
+		chr_ends[chrname] = indexes.back().binend.back();
 		indexes.push_back(REindexes());
 		chroffsets_indexfile[chrp] = (indexes.size()-1);
 		chrname = chrp;
 		chrstart = (pos);
 		chr_names.push_back(chrp);
+		chr_starts[chrp] = chrstart;
 	}
 }
 	cout << "RE site class initialised " << endl;
@@ -106,9 +111,22 @@ int HalfClusterDist = (coreprom_upstream + coreprom_downstream)/2;
 int rightchr;
 int starttosearch = 0;
 int bitcount = 0;
+int REposprev, REposnext;
+
 
 boost::unordered::unordered_map< string, int >::iterator it = chroffsets_indexfile.find(chr);
+
+if(it == chroffsets_indexfile.end()){ // Chromosome is not in the list
+//	cout << chr << "  cannot found.." << endl;
+	return 0;
+}
 rightchr = it->second; // Get the right index vector
+boost::unordered::unordered_map< string, int >::iterator its = chr_starts.find(chr);
+boost::unordered::unordered_map< string, int >::iterator ite = chr_ends.find(chr);
+if (pos <= its->second || pos >= ite->second){
+//	cout << rightchr << "  " << its->second << "  " << ite->second  << "   " << pos << endl;
+	return 0;
+}
 for(int i = 0; i < indexes[rightchr].binstart.size();++i){ // Iterate over the bins
 	if (indexes[rightchr].binstart[i] <= pos && indexes[rightchr].binend[i] >= pos){ // If start is within a bin
 		if(i > 0){
@@ -125,7 +143,6 @@ for(int i = 0; i < indexes[rightchr].binstart.size();++i){ // Iterate over the b
 		break;
 	}
 }
-	int REposprev, REposnext;
 	for (int i = starttosearch; i < starttosearch + bitcount; i+=2){
 		REposprev = posvector[i];
 		REposnext = posvector[i+1];

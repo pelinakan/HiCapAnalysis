@@ -28,11 +28,10 @@ void MappabilityClass::CreateIndexFile_Mappability(void){
 	ofstream mappbinaryf("MM9.Mappability.36mer.bin", ios::binary); // start end mappability
 
 	string chrname,chrp, chrn;
-	int startp,startn, endp, endn, chrstart,binst, binend; 
-	double mp,mn,nextbinm;
+	int startp, endp, chrstart; 
+	double mp;
 	int span = 200; // Window size
 	int count = 500; // how many windows per chunk
-	int offset;
 	vector < int > starts;
 	vector <int > ends;
 	vector < double > mapp;
@@ -193,7 +192,7 @@ void MappabilityClass::InitialiseVars(void){
 	string s;
 	s.append(dirname);
 	s.append("Mappability.36mers.mm9.chr_offsets.txt");
-	ifstream ifile(s.c_str());
+	ifstream RESitesf(s.c_str());
 	s.clear();
 
 	s.append(dirname);
@@ -214,10 +213,10 @@ void MappabilityClass::InitialiseVars(void){
 	string chrname;
 	int chroffset;
 	do{
-		ifile >> chrname >> chroffset;
+		RESitesf >> chrname >> chroffset;
 		chr_names.push_back(chrname);
 		chr_offsets.push_back(chroffset);
-	}while(!ifile.eof());
+	}while(!RESitesf.eof());
 
 }
 void  MappabilityClass::FindBinaryPos(int chroffset, int chroffset_next, int coord, int &fileoffset, int &bitcount){
@@ -278,7 +277,6 @@ NumberofBits = rlength / span; // How many bits to read
 
 ifstream::pos_type fileSize;
 
-char* data;
 double Mappmean = 0;
 int bitcount = 0;
 if(file.is_open())
@@ -322,7 +320,7 @@ if(file.is_open())
 
 int MappabilityClass::CalculateNumberofBitsToRead(ifstream &file, int &bitcount, int coord, int &end_prev){
 
-int start, start_next, end, count, offset;
+int start, end, count, offset;
 
 file.read((char *)(&start),sizeof(start)); 
 file.read((char *)(&end),sizeof(end));
