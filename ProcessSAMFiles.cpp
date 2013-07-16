@@ -211,7 +211,7 @@ int main (int argc,char* argv[]){
 		bamfile.ProcessTheBAMFile(Promoters,NegativeControls,mm9probes,BAMFILENAME, ExperimentNo);
 		
 		cout << "Detecting Interactions";
-		background.CalculateMeanandStdRegress(NegativeControls, ExperimentName); 
+		background.CalculateMeanandStdRegress(NegativeControls, ExperimentName, ExperimentNo); 
 		cout << ". ";
 		
 		EnrichedBins.DetectEnrichedInteractionBins(Promoters,background,ExperimentName,ExperimentNo);

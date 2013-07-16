@@ -6,13 +6,13 @@ public:
 int NofNegCtrls;
 void InitialiseData(void);
 void FillNegativeCtrls(RESitesClass&, MappabilityClass&);
-bool AnnotateWithNegCtrls(string,int,string,int,RESitesClass&,int);
+bool AnnotateWithNegCtrls(string,int,int,string,int,int,RESitesClass&,int);
 void BinPeaks(int,int,int);
 
 private:
-	void AnnotateDistalInteractor(string, string,int*,int,int);
+	void AnnotateDistalInteractor(string, string,int,int,int,int,int,int);
 	void AnnotateFeatFeatInteraction(int, int,int);
-
+	void PopulateInteractions(boost::unordered::unordered_map<int, int* >&, int, int, int);
 
 };
 void NegCtrlClass::InitialiseData(){
@@ -73,7 +73,7 @@ NofNegCtrls=i-1;
 	}
 }
 
-bool NegCtrlClass::AnnotateWithNegCtrls(string p_chr_1, int pstcoord, string p_chr_2, int pendcoord,RESitesClass& dpnIIsites,int ExperimentNo){
+bool NegCtrlClass::AnnotateWithNegCtrls(string p_chr_1, int re_firstinpair, int pos_firstinpair, string p_chr_2, int re_secondinpair, int pos_secondinpair, RESitesClass& dpnIIsites,int ExperimentNo){
 
 bool pann = false;
 
@@ -83,25 +83,22 @@ p_chr_2.erase(p_chr_2.find_last_not_of(" \n\r\t")+1);
 int ncidx1 = -1, ncidx2 = -1; // PromoterID
 for(int i = 0; i < NofNegCtrls; ++i){ //Iterate over all refseq genes on that chromosome
 	if (negctrls[i].chr.compare(p_chr_1) == 0){
-		if((negctrls[i].start <= pstcoord && negctrls[i].end >= pstcoord)){ // If the readstart is contained within an negative control
+		if((negctrls[i].start <= pos_firstinpair && negctrls[i].end >= pos_firstinpair)){ // If the readstart is contained within an negative control
 			ncidx1 = i;
 			pann = 1; // Read is annotated with a promoter
-			if((p_chr_1.compare(p_chr_2) == 0) && (negctrls[i].start <= pendcoord && negctrls[i].end >= pendcoord)) // if the pair of the read is also contained within the core promoter
+			if((p_chr_1.compare(p_chr_2) == 0) && (negctrls[i].start <= pos_secondinpair && negctrls[i].end >= pos_secondinpair)) // if the pair of the read is also contained within the core promoter
 				return pann;
 			// Check if the pair is close to another negative control
 			for(int m = 0; m < NofNegCtrls; ++m){ //Iterate over all refseq genes on that chromosome
 				if (negctrls[m].chr.compare(p_chr_2) == 0){
-					if((negctrls[m].start <= pendcoord && negctrls[m].end >= pendcoord)){ // If the pair is contained within another negative control
+					if((negctrls[m].start <= pos_secondinpair && negctrls[m].end >= pos_secondinpair)){ // If the pair is contained within another negative control
 						ncidx2 = m; // It is prom-prom interaction
 						AnnotateFeatFeatInteraction(ncidx1, ncidx2,ExperimentNo);
 						return pann;
 					}
 				} 
 			} // Checked if it is negctrl-negctrl interaction
-			int *renums;
-			renums = new int [2];
-			dpnIIsites.GettheREPositions(p_chr_2,pendcoord,renums); // Get the fragment number of the distal interactor
-			AnnotateDistalInteractor(p_chr_1,p_chr_2,renums,ncidx1,ExperimentNo);
+			AnnotateDistalInteractor(p_chr_1,p_chr_2,re_firstinpair,re_secondinpair,pos_firstinpair, pos_secondinpair, ncidx1,ExperimentNo);			
 			return pann;
 		}
 	}
@@ -109,53 +106,60 @@ for(int i = 0; i < NofNegCtrls; ++i){ //Iterate over all refseq genes on that ch
 // Annotate the second read in the pair (this could only be distal-prom interaction)
 for(int m = 0; m < NofNegCtrls; ++m){ //Iterate over all refseq genes on that chromosome
 	if (negctrls[m].chr.compare(p_chr_2) == 0){
-		if((negctrls[m].start <= pendcoord && negctrls[m].end >= pendcoord)){ // If the readstart is contained within an negative control
+		if((negctrls[m].start <= pos_secondinpair && negctrls[m].end >= pos_secondinpair)){ // If the readstart is contained within an negative control
 			ncidx2 = m;
 			pann = 1; // Read is annotated with a promoter
-			if((p_chr_1.compare(p_chr_2) == 0) && (negctrls[m].start <= pstcoord && negctrls[m].end >= pstcoord)) // if the pair of the read is also contained within the core promoter
-				return pann;
-			int *renums;
-			renums = new int [2];
-			dpnIIsites.GettheREPositions(p_chr_1, pstcoord,renums); // Get the fragment number of the distal interactor (this is it is the first read)
-			AnnotateDistalInteractor(p_chr_2,p_chr_1,renums,ncidx2,ExperimentNo);
+			AnnotateDistalInteractor(p_chr_2,p_chr_1,re_secondinpair, re_firstinpair,pos_secondinpair,pos_firstinpair,ncidx2,ExperimentNo); 
 			return pann;
 		}
 	}			
 }
 return pann;
 }
+void NegCtrlClass::PopulateInteractions(boost::unordered::unordered_map<int, int* >& signals, int interactor_resite, int interactor_pos,int ExperimentNo){
 
-void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int *renums, int ncidx,int ExperimentNo){
+	if(signals.find(interactor_resite) == signals.end()){
+		signals[interactor_resite] = new int[2]; // add a new entry
+		for(int z = 0; z < 2; ++z)
+			signals[interactor_resite][z] = 0;
+		//		cout << "new   " << signals[interactor_resite][ExperimentNo + 1] << "   ";
+		signals[interactor_resite][ExperimentNo + 1] = 1;
+		//		cout << signals[interactor_resite][ExperimentNo + 1] << endl;
+	}
+	else{ // if inserted before	
+		//		cout << "old   " << signals[interactor_resite][ExperimentNo + 1] << "    ";
+		(signals[interactor_resite][ExperimentNo + 1]) = signals[interactor_resite][ExperimentNo + 1] + 1.0;
+		//		cout << signals[interactor_resite][ExperimentNo + 1] << endl;
+	}
+	signals[interactor_resite][0] = interactor_pos; // Actual read pos
+}
+
+void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int resite_1, int resite_2, int pos_1, int pos_2, int ncidx,int ExperimentNo){
 
 	if(p_chr_1.compare(p_chr_2) == 0){ // Intra chromosomal interaction
-		if (renums[1] < negctrls[ncidx].closestREsitenums[0]){ // if upstream 
-			if(negctrls[ncidx].Signals.signal_ups.find(renums[0]) == negctrls[ncidx].Signals.signal_ups.end()){
-				negctrls[ncidx].Signals.signal_ups[renums[0]] = new int[1]; // add a new entry
-				negctrls[ncidx].Signals.signal_ups[renums[0]][ExperimentNo] = 1;
-			}
-			else // if inserted before
-				negctrls[ncidx].Signals.signal_ups[renums[0]][ExperimentNo] = negctrls[ncidx].Signals.signal_ups[renums[0]][ExperimentNo] + 1;
-		}
+		if (pos_2 < pos_1) // if upstream 
+			PopulateInteractions(negctrls[ncidx].Signals.signal_ups,resite_2, pos_2,ExperimentNo);
+
 		else{
-			if(negctrls[ncidx].Signals.signal_down.find(renums[0]) == negctrls[ncidx].Signals.signal_down.end()){
-				negctrls[ncidx].Signals.signal_down[renums[0]] = new int[1]; // add a new entry
-				negctrls[ncidx].Signals.signal_down[renums[0]][ExperimentNo] = 1;
-			}
-			else // if inserted before
-				negctrls[ncidx].Signals.signal_down[renums[0]] += 1;
+			PopulateInteractions(negctrls[ncidx].Signals.signal_down,resite_2, pos_2,ExperimentNo);
 		}		
 	}
-	else{ // inter chromosomal interaction
-		bool chrfound = 0;	
-		vector < SignalStruct_CTX >::iterator it;
-		for(it = negctrls[ncidx].Signals_CTX.begin(); it < negctrls[ncidx].Signals_CTX.end(); ++it){
-			if (p_chr_2.compare(it->maptochrname) == 0){
-				if(it->signal.find(renums[0]) == it->signal.end()){
-					it->signal[renums[0]] = new int[1]; // add a new entry
-					it->signal[renums[0]][ExperimentNo] = 1;
+	else{  // inter chromosomal interaction
+		bool chrfound = 0;
+		vector < SignalStruct_CTX >::iterator itx;
+		for(itx = negctrls[ncidx].Signals_CTX.begin() ; itx < negctrls[ncidx].Signals_CTX.end();++itx){
+			if (p_chr_2.compare(itx->maptochrname) == 0){
+				if(itx->signal.find(resite_2) == itx->signal.end()){
+					itx->signal[resite_2] = new int[2]; // add a new entry
+					for(int z = 0; z < 2; ++z)
+						itx->signal[resite_2][z] = 0;
+					itx->signal[resite_2][ExperimentNo + 1] = 1;
+					itx->signal[resite_2][0] = pos_2; // Actual read pos
 				}
-				else // if inserted before
-					it->signal[renums[0]][ExperimentNo] += 1;
+				else{ // if inserted before
+					itx->signal[resite_2][ExperimentNo + 1] += 1;
+					itx->signal[resite_2][0] = pos_2; // Actual read pos
+				}
 				chrfound = 1;
 				break;
 			}
@@ -163,10 +167,11 @@ void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int 
 		if(!chrfound){
 			negctrls[ncidx].Signals_CTX.push_back(SignalStruct_CTX());
 			negctrls[ncidx].Signals_CTX.back().maptochrname = p_chr_2;
-			negctrls[ncidx].Signals_CTX.back().signal[renums[0]] = new int[1];
-			negctrls[ncidx].Signals_CTX.back().signal[renums[0]][ExperimentNo] = 1;
+			negctrls[ncidx].Signals_CTX.back().signal[resite_2] = new int[2];
+			negctrls[ncidx].Signals_CTX.back().signal[resite_2][ExperimentNo + 1] = 1;
+			negctrls[ncidx].Signals_CTX.back().signal[resite_2][0] = pos_2;
 		}
-	}
+	}	 
 }
 
 void NegCtrlClass::AnnotateFeatFeatInteraction(int ncidx1, int ncidx2,int ExperimentNo){

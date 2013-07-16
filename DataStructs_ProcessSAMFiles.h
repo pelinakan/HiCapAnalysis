@@ -1,8 +1,9 @@
 struct InteractionStruct{
 	string chr;
-	int pos[2]; // RE site
+	int resites[2]; // RE fragment start end
+	int pos; //Actual read start
 	int distance; // Distance from TSS
-	int supp_pairs[4]; // the number of reads / the number of RE sites within the core promoter
+	int supp_pairs[2]; // the number of reads / the number of RE sites within the core promoter
 	char type; // U: upstream , D: downstream , X: inter-chromosomal
 	bool peakoverlap; // if there is a peak in that RE fragment
 	string peakprofile; // Peak profile in binary format
@@ -11,8 +12,8 @@ struct InteractionStruct{
 };
 
 struct SignalStruct{ // This struct keeps the numbers of restriction fragments where there is at least one pair coming from a feature, one struct per chr
-	boost::unordered::unordered_map<int, int* > signal_ups; // upstream of the promoter activation direction
-	boost::unordered::unordered_map<int, int* > signal_down; // downstream of the promoter activation direction
+	boost::unordered::unordered_map<int, int* > signal_ups; // upstream of the promoter activation direction key:REsite, [0]:Read Position, [1..n]: number of times observed for experiments 1..n
+	boost::unordered::unordered_map<int, int* > signal_down; // downstream of the promoter activation direction key:REsite, [0]:Read Position, [1..n]: number of times observed for experiments 1..n
 //	boost::unordered::unordered_map<int, float> distance; // Distance of the interaction
 };
 

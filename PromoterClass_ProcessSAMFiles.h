@@ -21,7 +21,7 @@ PromoterStruct *proms;
 temppars *tp;
 void InitialiseData(void);
 void ReadPromoterAnnotation(RESitesClass&, MappabilityClass&);
-bool AnnotatewithPromoters(string,int,string,int,RESitesClass&,int);
+bool AnnotatewithPromoters(string,int,int,string,int,int,RESitesClass&,int);
 void PrintInteractions(string);
 int NofGenes;
 int NofPromoters;
@@ -30,8 +30,9 @@ private:
 	void GetTrFeats(stringstream&,temppars&);
 	void ClusterIsoformPromoters(vector<int>,vector<string>,int,int);
 	void DealwithSharedPromoters(int);
-	void AnnotateDistalInteractor(string, string,int,int,int,int);
+	void AnnotateDistalInteractor(string, string,int,int,int,int,int,int);
 	void AnnotateFeatFeatInteraction(int, int, int);
+	void PopulateInteractions(boost::unordered::unordered_map<int, int* >&, int, int,int);
 };
 
 void PromoterClass::InitialiseData(void){
@@ -214,7 +215,7 @@ ifstream RefSeq_file(RefSeqfilename.c_str());
 		
 		if(geneindex%10000 == 0){
 		  cout << geneindex << "    Promoters Annotated" << endl;
-		//  break;
+	//	  break;
 		}
 		//	cout << tp[1].name << endl;
 	}while(tp[1].name!="END");
@@ -261,7 +262,6 @@ ifstream RefSeq_file(RefSeqfilename.c_str());
 	}
 	cout << "Promoter Chromosome Indexes Generated" << endl;
 }
-
 void PromoterClass::DealwithSharedPromoters(int nofproms){ // If promoters are too close to each other
 	
 	for (int i = 0; i < nofproms; ++i) {
@@ -281,7 +281,7 @@ void PromoterClass::DealwithSharedPromoters(int nofproms){ // If promoters are t
 		}
 	}
 }
-bool PromoterClass::AnnotatewithPromoters(string p_chr_1, int resite_firstinpair, string p_chr_2, int resite_secondinpair, RESitesClass& dpnIIsites,int ExperimentNo){
+bool PromoterClass::AnnotatewithPromoters(string p_chr_1, int resite_firstinpair, int pos_firstinpair, string p_chr_2, int resite_secondinpair, int pos_secondinpair,RESitesClass& dpnIIsites,int ExperimentNo){
 
 int prom1_chrindex, prom2_chrindex;
 bool pann = 0;
@@ -311,21 +311,21 @@ if (!chrfound)
 
 int pidx1 = -1, pidx2 = -1; // PromoterID
 for(int i = 0; i < prom_indexes[prom1_chrindex].size(); ++i){ //Iterate over all refseq genes on that chromosome
-	if((proms[prom_indexes[prom1_chrindex][i]].start <= resite_firstinpair && proms[prom_indexes[prom1_chrindex][i]].end >= resite_firstinpair)){ // If the readstart is contained within the core promoter
+	if((proms[prom_indexes[prom1_chrindex][i]].start <= pos_firstinpair && proms[prom_indexes[prom1_chrindex][i]].end >= pos_firstinpair)){ // If the readstart is contained within the core promoter
 		pidx1 =	prom_indexes[prom1_chrindex][i];
 		pann = 1; // Read is annotated with a promoter
-		if(p_chr_1.compare(p_chr_2) == 0 && (proms[pidx1].start <= resite_secondinpair && proms[pidx1].end >= resite_secondinpair))
+		if(p_chr_1.compare(p_chr_2) == 0 && (proms[pidx1].start <= pos_secondinpair && proms[pidx1].end >= pos_secondinpair))
 		  return pann; // if the pair of the read is also contained within the core promoter
 		// Check if the pair is close to another promoter
 		for(int m = 0; m < prom_indexes[prom2_chrindex].size(); ++m){ //Iterate over all refseq genes on that chromosome
-			if((proms[prom_indexes[prom2_chrindex][m]].start <= resite_secondinpair && proms[prom_indexes[prom2_chrindex][m]].end >= resite_secondinpair)){ // If the readstart is contained within the core promoter
+			if((proms[prom_indexes[prom2_chrindex][m]].start <= pos_secondinpair && proms[prom_indexes[prom2_chrindex][m]].end >= pos_secondinpair)){ // If the readstart is contained within the core promoter
 				pidx2 =	prom_indexes[prom2_chrindex][m]; // It is prom-prom interaction
 				AnnotateFeatFeatInteraction(pidx1, pidx2,ExperimentNo);
 				AnnotateFeatFeatInteraction(pidx2, pidx1,ExperimentNo);
 				return pann;
 			}
 		} // Checked if it is prom-prom interaction
-		AnnotateDistalInteractor(p_chr_1,p_chr_2,resite_firstinpair,resite_secondinpair,pidx1,ExperimentNo);
+		AnnotateDistalInteractor(p_chr_1,p_chr_2,resite_firstinpair,resite_secondinpair,pos_firstinpair, pos_secondinpair, pidx1,ExperimentNo);
 		return pann;
 	}
 }// First read in the pair processed
@@ -334,92 +334,64 @@ for(int m = 0; m < prom_indexes[prom2_chrindex].size(); ++m){ //Iterate over all
 	if((proms[prom_indexes[prom2_chrindex][m]].start <= resite_secondinpair && proms[prom_indexes[prom2_chrindex][m]].end >= resite_secondinpair)){ // If the readstart is contained within the core promoter
 		pann = 1;
 		pidx2 =	prom_indexes[prom2_chrindex][m];
-		AnnotateDistalInteractor(p_chr_2,p_chr_1,resite_secondinpair, resite_firstinpair,pidx2,ExperimentNo); 
+		AnnotateDistalInteractor(p_chr_2,p_chr_1,resite_secondinpair, resite_firstinpair,pos_secondinpair,pos_firstinpair,pidx2,ExperimentNo); 
 		return pann;
 	}			
 }
 return pann;
 }  
-void PromoterClass::AnnotateDistalInteractor(string promoter_chr, string interactor_chr, int promoter_resite, int interactor_resite, int pidx, int ExperimentNo){
+void PromoterClass::PopulateInteractions(boost::unordered::unordered_map<int, int* >& signals, int interactor_resite, int interactor_pos,int ExperimentNo){
+
+	if(signals.find(interactor_resite) == signals.end()){
+		signals[interactor_resite] = new int[2]; // add a new entry
+		for(int z = 0; z < 2; ++z)
+			signals[interactor_resite][z] = 0;
+//		cout << "new   " << signals[interactor_resite][ExperimentNo + 1] << "   ";
+		signals[interactor_resite][ExperimentNo + 1] = 1;
+//		cout << signals[interactor_resite][ExperimentNo + 1] << endl;
+	}
+	else{ // if inserted before	
+//		cout << "old   " << signals[interactor_resite][ExperimentNo + 1] << "    ";
+		(signals[interactor_resite][ExperimentNo + 1]) = signals[interactor_resite][ExperimentNo + 1] + 1.0;
+//		cout << signals[interactor_resite][ExperimentNo + 1] << endl;
+	}
+	signals[interactor_resite][0] = interactor_pos; // Actual read pos
+}
+void PromoterClass::AnnotateDistalInteractor(string promoter_chr, string interactor_chr, int promoter_resite, int interactor_resite, int promoter_pos, int interactor_pos, int pidx, int ExperimentNo){
  
 
 // Intra chromosomal interaction 
-  if(promoter_chr.compare(interactor_chr) == 0){ 
-	  if ( proms[pidx].strand == "+"){
-		  if (interactor_resite < promoter_resite){ // upstream 
-			  if( (abs(interactor_resite - promoter_resite)) > MinimumJunctionDistance){ // at least minjunctdist away
-				  if(proms[pidx].Signals.signal_ups.find(interactor_resite) == proms[pidx].Signals.signal_ups.end()){
-					  proms[pidx].Signals.signal_ups[interactor_resite] = new int[1]; // add a new entry
-					  for(int z = 0; z < 1; ++z)
-						  proms[pidx].Signals.signal_ups[interactor_resite][z] = 0;
-					  proms[pidx].Signals.signal_ups[interactor_resite][ExperimentNo] = 1;
-//					  proms[pidx].Signals.distance[interactor_resite] = 0; 
-				  }
-				  else // if inserted before					
-					  (proms[pidx].Signals.signal_ups[interactor_resite][ExperimentNo]) += 1.0;;
-//				  proms[pidx].Signals.distance[interactor_resite] = proms[pidx].Signals.distance[interactor_resite] + (abs(interactor_resite - promoter_resite));
-			  }
+  if(promoter_chr.compare(interactor_chr) == 0){
+	  if( (abs(interactor_pos - promoter_pos)) > MinimumJunctionDistance){ // at least minjunctdist away
+		  if ( proms[pidx].strand == "+"){
+			  if (interactor_pos < promoter_pos) // upstream 
+				  PopulateInteractions(proms[pidx].Signals.signal_ups,interactor_resite,interactor_pos,ExperimentNo);
+			  else // downstream
+				  PopulateInteractions(proms[pidx].Signals.signal_down,interactor_resite,interactor_pos,ExperimentNo);
 		  }
-		  if (interactor_resite > promoter_resite){ // downstream
-			  if ((abs(interactor_resite - promoter_resite)) > MinimumJunctionDistance ){ // at least minjunctdist away
-				  if(proms[pidx].Signals.signal_down.find(interactor_resite) == proms[pidx].Signals.signal_down.end()){
-					  proms[pidx].Signals.signal_down[interactor_resite] = new int[1]; // add a new entry
-					  for(int z = 0; z < 1; ++z)
-						  proms[pidx].Signals.signal_down[interactor_resite][z] = 0;
-					  proms[pidx].Signals.signal_down[interactor_resite][ExperimentNo] = 1;
-//					  proms[pidx].Signals.distance[interactor_resite] = 0;
-				  }
-				  else // if inserted before
-					  (proms[pidx].Signals.signal_down[interactor_resite][ExperimentNo]) += 1.0;;
-//				  proms[pidx].Signals.distance[interactor_resite] = proms[pidx].Signals.distance[interactor_resite] + (abs(interactor_resite - promoter_resite));
-			  }
-		  }
-	  }
-	  else{ // (-) strand
-		  if (interactor_resite < promoter_resite){ // downstream
-			  if( (abs(interactor_resite - promoter_resite)) > MinimumJunctionDistance){ // at least minjunctdist away
-				  if(proms[pidx].Signals.signal_down.find(interactor_resite) == proms[pidx].Signals.signal_down.end()){
-					  proms[pidx].Signals.signal_down[interactor_resite] = new int[1]; // add a new entry
-					  for(int z = 0; z < 1; ++z)
-						  proms[pidx].Signals.signal_down[interactor_resite][z] = 0;
-					  proms[pidx].Signals.signal_down[interactor_resite][ExperimentNo] = 1;
-//					  proms[pidx].Signals.distance[interactor_resite] = 0;
-				  }
-				  else // if inserted before
-					  (proms[pidx].Signals.signal_down[interactor_resite][ExperimentNo]) += 1.0;;
-//				  proms[pidx].Signals.distance[interactor_resite] = proms[pidx].Signals.distance[interactor_resite] + (abs(interactor_resite - promoter_resite));
-			  }
-		  }
-		  if (interactor_resite > promoter_resite){ // upstream
-			  if ((abs(interactor_resite - promoter_resite)) > MinimumJunctionDistance ){ // at least minjunctdist away
-				  if(proms[pidx].Signals.signal_ups.find(interactor_resite) == proms[pidx].Signals.signal_ups.end()){
-					  proms[pidx].Signals.signal_ups[interactor_resite] = new int[1]; // add a new entry
-					  for(int z = 0; z < 1; ++z)
-						  proms[pidx].Signals.signal_ups[interactor_resite][z] = 0;
-					  proms[pidx].Signals.signal_ups[interactor_resite][ExperimentNo] = 1;
-//					  proms[pidx].Signals.distance[interactor_resite] = 0;
-				  }
-				  else // if inserted before
-					  (proms[pidx].Signals.signal_ups[interactor_resite][ExperimentNo]) += 1.0;;
-//				  proms[pidx].Signals.distance[interactor_resite] = proms[pidx].Signals.distance[interactor_resite] + (abs(interactor_resite - promoter_resite));
-			  }
+		  else{ // (-) strand
+			  if (interactor_pos < promoter_pos) // downstream
+				  PopulateInteractions(proms[pidx].Signals.signal_down,interactor_resite,interactor_pos,ExperimentNo);
+			  else
+				  PopulateInteractions(proms[pidx].Signals.signal_ups,interactor_resite,interactor_pos,ExperimentNo);
 		  }
 	  }
   }
-  
   else{  // inter chromosomal interaction
 	  bool chrfound = 0;
-	  vector < SignalStruct_CTX >::iterator it;
-	  for(it = proms[pidx].Signals_CTX.begin() ; it < proms[pidx].Signals_CTX.end();++it){
-		  if (interactor_chr.compare(it->maptochrname) == 0){
-			  if(it->signal.find(interactor_resite) == it->signal.end()){
-				  it->signal[interactor_resite] = new int[1]; // add a new entry
-				  for(int z = 0; z < 1; ++z)
-					  it->signal[interactor_resite][z] = 0;
-				  it->signal[interactor_resite][ExperimentNo] = 1;
+	  vector < SignalStruct_CTX >::iterator itx;
+	  for(itx = proms[pidx].Signals_CTX.begin() ; itx < proms[pidx].Signals_CTX.end();++itx){
+		  if (interactor_chr.compare(itx->maptochrname) == 0){
+			  if(itx->signal.find(interactor_resite) == itx->signal.end()){
+				  itx->signal[interactor_resite] = new int[2]; // add a new entry
+				  for(int z = 0; z < 2; ++z)
+					  itx->signal[interactor_resite][z] = 0;
+				  itx->signal[interactor_resite][ExperimentNo + 1] = 1;
 			  }
-			  else // if inserted before
-				  it->signal[interactor_resite][ExperimentNo] += 1;
+			  else{ // if inserted before
+				  itx->signal[interactor_resite][ExperimentNo + 1] += 1;
+				  itx->signal[interactor_resite][0] = interactor_pos; // Actual read pos
+			  }
 			  chrfound = 1;
 			  break;
 		  }
@@ -427,8 +399,9 @@ void PromoterClass::AnnotateDistalInteractor(string promoter_chr, string interac
 	  if(!chrfound){
 		  proms[pidx].Signals_CTX.push_back(SignalStruct_CTX());
 		  proms[pidx].Signals_CTX.back().maptochrname.append(interactor_chr);
-		  proms[pidx].Signals_CTX.back().signal[interactor_resite] = new int[1];
-		  proms[pidx].Signals_CTX.back().signal[interactor_resite][ExperimentNo] = 1;
+		  proms[pidx].Signals_CTX.back().signal[interactor_resite] = new int[2];
+		  proms[pidx].Signals_CTX.back().signal[interactor_resite][ExperimentNo + 1] = 1;
+		  proms[pidx].Signals_CTX.back().signal[interactor_resite][0] = interactor_pos; // Actual read pos
 	  }
 	}	 
  
