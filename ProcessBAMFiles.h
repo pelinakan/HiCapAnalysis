@@ -5,28 +5,30 @@ class ProcessBAM{
 public:
 	void ProcessTheBAMFile(PromoterClass&,NegCtrlClass&,ProbeSet&,string,int);
 private:
-	void GetPairInformation(BamTools::BamAlignment&, PairStruct&);
-	void ProcessPairs(PairStruct&,RESitesClass&,PromoterClass&,NegCtrlClass&,int);
+	void GetPairInformation(BamTools::BamAlignment&, BamTools::BamAlignment&, PairStruct&);
+	void ProcessPairs(PairStruct&,RESitesClass&,PromoterClass&,NegCtrlClass&,int, int&,int&, int&);
 	boost::unordered::unordered_map<int, string> RefIDtoChrNames;
 };
 
-void ProcessBAM::GetPairInformation(BamTools::BamAlignment& al, PairStruct& temppair){
+void ProcessBAM::GetPairInformation(BamTools::BamAlignment& al, BamTools::BamAlignment& almate, PairStruct& temppair){
 	boost::unordered::unordered_map<int, string>::const_iterator it1 = RefIDtoChrNames.find(al.RefID);
 	if(it1 != RefIDtoChrNames.end())
 		temppair.chr_1 = it1->second;
 
-	boost::unordered::unordered_map<int, string>::const_iterator it2 = RefIDtoChrNames.find(al.MateRefID);
+	boost::unordered::unordered_map<int, string>::const_iterator it2 = RefIDtoChrNames.find(almate.RefID);
 	if(it2 != RefIDtoChrNames.end())
 		temppair.chr_2 = it2->second;
 	
 	temppair.startcoord = al.Position;
-	temppair.endcoord = al.MatePosition;
-
-//	cout << it1->second << "  " << it2->second << "   " << al.Position << "   " << al.MatePosition << endl;
-//	cout << temppair.chr_1 << "   " << temppair.chr_2 << "    " << temppair.startcoord << "    " << temppair.endcoord << endl;
-
+	temppair.endcoord = almate.Position;
+	
+//	cout << it1->second << "   " << it2->second << "   " << al.Position << "   " << almate.Position << endl;
 }
 void ProcessBAM::ProcessTheBAMFile(PromoterClass& promoters,NegCtrlClass& negctrls,ProbeSet& mm9prs, string BAMFILENAME,int ExperimentNo){
+
+int NofPairsAnnWProms = 0;
+int NofPairsAnnWNegCtrls = 0;
+int NofPairsNoAnn = 0;
 
 BamReader reader;
 if ( !reader.Open(BAMFILENAME.c_str()) ) {
@@ -41,6 +43,7 @@ RefVector::const_iterator chrit;
 for (chrit = references.begin(); chrit != references.end(); ++chrit){
 	int key = reader.GetReferenceID(chrit->RefName);
 	RefIDtoChrNames[key] = chrit->RefName;
+//	cout << chrit->RefName << '\t' << key << endl;
 }
 
 PairStruct* PairPool = new PairStruct[BUFFERSIZE];
@@ -54,7 +57,8 @@ int nofthreads, poolsize = 0;
 	nofthreads = omp_get_num_threads(); // Get num of threads
 }
 */
-	nofthreads = 4;
+
+	nofthreads = 1;
 	cout << "Number of Threads   " << nofthreads << endl;
 	for (int t = 0; t < nofthreads; ++t){
 		cout << "Thread No " << t << "    ";
@@ -65,20 +69,22 @@ int nofthreads, poolsize = 0;
 //	ofstream flagged("flagged_interactions.txt");
 //Read the BAM file into PairPool vector
 	cout << "Reading BAM file..." << endl;
-	PairStruct mate;
 while ( reader.GetNextAlignmentCore(al) ){
-	GetPairInformation(al,PairPool[poolsize]);
-	reader.GetNextAlignmentCore(almate);
-	//GetPairInformation(almate,mate);
-	++poolsize;
-	
+		reader.GetNextAlignmentCore(almate);
+		GetPairInformation(al,almate,PairPool[poolsize]);
+		if(al.Position == -1 || almate.Position == -1){
+			cout << "Mate not correct, exiting  the reading loop" << endl;
+			break;
+		}
+		++poolsize;
+
 	if(poolsize == BUFFERSIZE){
 		cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions... ";
-#pragma omp parallel for num_threads (nofthreads)
+//#pragma omp parallel for num_threads (nofthreads)
 		for(int i=0;i<poolsize;++i){
 //			cout << PairPool[i].chr_1 << '\t' << PairPool[i].startcoord << '\t' << PairPool[i].chr_2 << '\t' << PairPool[i].endcoord << endl;
-			 int tid = omp_get_thread_num(); // Get thread id
-			ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo); //Annotate the pair
+			// int tid = omp_get_thread_num(); // Get thread id
+			ProcessPairs(PairPool[i],dpnIIparallel[0],promoters,negctrls,ExperimentNo, NofPairsAnnWProms, NofPairsAnnWNegCtrls, NofPairsNoAnn); //Annotate the pair
 		}
 		cout << endl << BAMFILENAME << "   " <<  poolsize << "   pairs finished, printing unusual pairs..." << endl;
 /*
@@ -100,12 +106,12 @@ if(poolsize > 0){ // This is to read the last batch of pairs
 		nofthreads = omp_get_num_threads(); // Get num of threads
 	}
 */
-	nofthreads = 4;
-#pragma omp parallel for num_threads (nofthreads)
-	for(int i=0;i<poolsize;++i){
+	nofthreads = 1;
+//#pragma omp parallel for num_threads (nofthreads)
+	for(int i = 0; i < poolsize; ++i){
 	//	cout << "last pool  " << PairPool[i].chr_1 << '\t' << PairPool[i].startcoord << '\t' << PairPool[i].chr_2 << '\t' << PairPool[i].endcoord << endl;
-		int tid = omp_get_thread_num(); // Get thread id
-		ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo); //Annotate the pair
+	//	int tid = omp_get_thread_num(); // Get thread id
+		ProcessPairs(PairPool[i],dpnIIparallel[0],promoters,negctrls,ExperimentNo,NofPairsAnnWProms,NofPairsAnnWNegCtrls,NofPairsNoAnn); //Annotate the pair
 	}
 	cout << endl << BAMFILENAME << "   reading finished, printing unusual pairs..." << endl;
 /*
@@ -118,12 +124,12 @@ if(poolsize > 0){ // This is to read the last batch of pairs
 	PairPool = new PairStruct[BUFFERSIZE];
 	poolsize = 0;
 }
+cout << "Number of Pairs Annotated with Promoters    " << NofPairsAnnWProms << endl;
+cout << "Number of Pairs Annotated with NegCtrls     " << NofPairsAnnWNegCtrls << endl;
+cout << "Number of Pairs with No Annotation           " << NofPairsNoAnn << endl;
 
 }
-
-
-
-void ProcessBAM::ProcessPairs(PairStruct& thispair, RESitesClass& dpnII, PromoterClass& promoters, NegCtrlClass& negctrls,int ExperimentNo){
+void ProcessBAM::ProcessPairs(PairStruct& thispair, RESitesClass& dpnII, PromoterClass& promoters, NegCtrlClass& negctrls,int ExperimentNo, int& annwp, int& annwnc, int& noann){
 
 	bool pairann = false;
 	int *renums1, *renums2;
@@ -158,9 +164,15 @@ void ProcessBAM::ProcessPairs(PairStruct& thispair, RESitesClass& dpnII, Promote
 		resite_secondinpair = thispair.endcoord;
 
 	pairann = promoters.AnnotatewithPromoters(thispair.chr_1,resite_firstinpair,thispair.startcoord,thispair.chr_2,resite_secondinpair,thispair.endcoord,dpnII,ExperimentNo);
-	if(!pairann)// If both reads are not annotated with promoters
+	if(pairann)
+		++annwp;
+	else {// If the pair is not annotated with promoters
 		pairann = negctrls.AnnotateWithNegCtrls(thispair.chr_1,resite_firstinpair,thispair.startcoord,thispair.chr_2,resite_secondinpair,thispair.endcoord,dpnII,ExperimentNo);
-	//cout << "..";
+		if(pairann)
+			++annwnc;
+		else
+			++noann;
+	}
 	if(passed1 && passed2)
 		thispair.flagged = 0;  // Regular Pair
 	else // if the REsites are very far away from the read coordinate

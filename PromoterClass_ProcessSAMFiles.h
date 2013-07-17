@@ -215,7 +215,7 @@ ifstream RefSeq_file(RefSeqfilename.c_str());
 		
 		if(geneindex%10000 == 0){
 		  cout << geneindex << "    Promoters Annotated" << endl;
-	//	  break;
+		  //break;
 		}
 		//	cout << tp[1].name << endl;
 	}while(tp[1].name!="END");
@@ -249,12 +249,12 @@ ifstream RefSeq_file(RefSeqfilename.c_str());
 		found=-1;
 		for(i = 0; i < ChrNames_proms.size();++i){
 			if(proms[promindex].chr.compare(ChrNames_proms[i]) == 0) 
-				found=i;
+				found = i;
 		}
 		if(found==-1){
 			ChrNames_proms.push_back(proms[promindex].chr);
 			prom_indexes.push_back(vector<int>());
-			prom_indexes[ChrNames_proms.size()-1].push_back(promindex);
+			prom_indexes.back().push_back(promindex);
 		}
 		else
 			prom_indexes[found].push_back(promindex);
@@ -285,67 +285,71 @@ bool PromoterClass::AnnotatewithPromoters(string p_chr_1, int resite_firstinpair
 
 int prom1_chrindex, prom2_chrindex;
 bool pann = 0;
-bool chrfound = 0;
+bool chrfound1 = 0, chrfound2 = 0;
 
 p_chr_1.erase(p_chr_1.find_last_not_of(" \n\r\t")+1); //trim the string
 for(int k = 0;k < ChrNames_proms.size(); ++k){
 	if(ChrNames_proms[k].compare(p_chr_1.c_str()) == 0){ // Find the right chromosome (genes are indexed acc. to which chromosome they are on
 		prom1_chrindex = k;
-		chrfound = 1;
+		chrfound1 = 1;
 		break;
 	}
 }
-if (!chrfound)
-	return 0;
-chrfound = 0;
 p_chr_2.erase(p_chr_2.find_last_not_of(" \n\r\t")+1);
 for(int k = 0;k < ChrNames_proms.size(); ++k){
 	if(ChrNames_proms[k].compare(p_chr_2.c_str()) == 0){ // Find the right chromosome (genes are indexed acc. to which chromosome they are on
 		prom2_chrindex = k;
-		chrfound = 1;
+		chrfound2 = 1;
 		break;
 	}
 }
-if (!chrfound)
-	return 0;
 
 int pidx1 = -1, pidx2 = -1; // PromoterID
-for(int i = 0; i < prom_indexes[prom1_chrindex].size(); ++i){ //Iterate over all refseq genes on that chromosome
-	if((proms[prom_indexes[prom1_chrindex][i]].start <= pos_firstinpair && proms[prom_indexes[prom1_chrindex][i]].end >= pos_firstinpair)){ // If the readstart is contained within the core promoter
-		pidx1 =	prom_indexes[prom1_chrindex][i];
-		pann = 1; // Read is annotated with a promoter
-		if(p_chr_1.compare(p_chr_2) == 0 && (proms[pidx1].start <= pos_secondinpair && proms[pidx1].end >= pos_secondinpair))
-		  return pann; // if the pair of the read is also contained within the core promoter
-		// Check if the pair is close to another promoter
-		for(int m = 0; m < prom_indexes[prom2_chrindex].size(); ++m){ //Iterate over all refseq genes on that chromosome
-			if((proms[prom_indexes[prom2_chrindex][m]].start <= pos_secondinpair && proms[prom_indexes[prom2_chrindex][m]].end >= pos_secondinpair)){ // If the readstart is contained within the core promoter
-				pidx2 =	prom_indexes[prom2_chrindex][m]; // It is prom-prom interaction
-				AnnotateFeatFeatInteraction(pidx1, pidx2,ExperimentNo);
-				AnnotateFeatFeatInteraction(pidx2, pidx1,ExperimentNo);
-				return pann;
-			}
-		} // Checked if it is prom-prom interaction
-		AnnotateDistalInteractor(p_chr_1,p_chr_2,resite_firstinpair,resite_secondinpair,pos_firstinpair, pos_secondinpair, pidx1,ExperimentNo);
-		return pann;
+if(chrfound1){
+	for(int i = 0; i < prom_indexes[prom1_chrindex].size(); ++i){ //Iterate over all refseq genes on that chromosome
+		if((proms[prom_indexes[prom1_chrindex][i]].start <= pos_firstinpair && proms[prom_indexes[prom1_chrindex][i]].end >= pos_firstinpair)){ // If the readstart is contained within the core promoter
+			pidx1 =	prom_indexes[prom1_chrindex][i];
+		//	if (proms[pidx1].genes[0] == "0610005C13Rik")
+		//		cout << proms[pidx1].genes[0] << '\t' << p_chr_1 << '\t' << p_chr_2 << '\t' << pos_firstinpair << '\t' << pos_secondinpair << '\t' << resite_firstinpair << '\t' << resite_secondinpair << endl;
+			pann = 1; // Read is annotated with a promoter
+			if(p_chr_1.compare(p_chr_2) == 0 && (proms[pidx1].start <= pos_secondinpair && proms[pidx1].end >= pos_secondinpair))
+				return pann; // if the pair of the read is also contained within the core promoter
+			if(chrfound2){	// Check if the pair is close to another promoter
+				for(int m = 0; m < prom_indexes[prom2_chrindex].size(); ++m){ //Iterate over all refseq genes on that chromosome
+					if((proms[prom_indexes[prom2_chrindex][m]].start <= pos_secondinpair && proms[prom_indexes[prom2_chrindex][m]].end >= pos_secondinpair)){ // If the readstart is contained within the core promoter
+						pidx2 =	prom_indexes[prom2_chrindex][m]; // It is prom-prom interaction
+						AnnotateFeatFeatInteraction(pidx1, pidx2,ExperimentNo);
+						AnnotateFeatFeatInteraction(pidx2, pidx1,ExperimentNo);
+						return pann;
+					}
+				}
+			} // Checked if it is prom-prom interaction
+			AnnotateDistalInteractor(p_chr_1,p_chr_2,resite_firstinpair,resite_secondinpair,pos_firstinpair, pos_secondinpair, pidx1,ExperimentNo);
+			return pann;
+		}
 	}
 }// First read in the pair processed
 // Annotate the second read in the pair (this could only be distal-prom interaction)
-for(int m = 0; m < prom_indexes[prom2_chrindex].size(); ++m){ //Iterate over all refseq genes on that chromosome
-	if((proms[prom_indexes[prom2_chrindex][m]].start <= resite_secondinpair && proms[prom_indexes[prom2_chrindex][m]].end >= resite_secondinpair)){ // If the readstart is contained within the core promoter
-		pann = 1;
-		pidx2 =	prom_indexes[prom2_chrindex][m];
-		AnnotateDistalInteractor(p_chr_2,p_chr_1,resite_secondinpair, resite_firstinpair,pos_secondinpair,pos_firstinpair,pidx2,ExperimentNo); 
-		return pann;
-	}			
+if(chrfound2){
+	for(int m = 0; m < prom_indexes[prom2_chrindex].size(); ++m){ //Iterate over all refseq genes on that chromosome
+		if((proms[prom_indexes[prom2_chrindex][m]].start <= pos_secondinpair && proms[prom_indexes[prom2_chrindex][m]].end >= pos_secondinpair)){ // If the readstart is contained within the core promoter
+			pidx2 =	prom_indexes[prom2_chrindex][m];
+		//	if (proms[pidx2].genes[0] == "0610005C13Rik")
+		//		cout << proms[pidx2].genes[0] << '\t' << p_chr_2 << '\t' << p_chr_1 << '\t' << pos_secondinpair << '\t' << pos_firstinpair << '\t' << resite_secondinpair << '\t' << resite_firstinpair << endl;
+			pann = 1;
+			AnnotateDistalInteractor(p_chr_2,p_chr_1,resite_secondinpair, resite_firstinpair,pos_secondinpair,pos_firstinpair,pidx2,ExperimentNo); 
+			return pann;
+		}			
+	}
 }
 return pann;
 }  
 void PromoterClass::PopulateInteractions(boost::unordered::unordered_map<int, int* >& signals, int interactor_resite, int interactor_pos,int ExperimentNo){
-
+//	cout << interactor_resite << "  " << ExperimentNo << "  ";
 	if(signals.find(interactor_resite) == signals.end()){
-		signals[interactor_resite] = new int[2]; // add a new entry
-		for(int z = 0; z < 2; ++z)
-			signals[interactor_resite][z] = 0;
+		signals[interactor_resite] = new int[NOFEXPERIMENTS + 1]; // add a new entry
+		for(int z = 0; z < NOFEXPERIMENTS; ++z)
+			signals[interactor_resite][z + 1] = 0;
 //		cout << "new   " << signals[interactor_resite][ExperimentNo + 1] << "   ";
 		signals[interactor_resite][ExperimentNo + 1] = 1;
 //		cout << signals[interactor_resite][ExperimentNo + 1] << endl;
@@ -359,7 +363,6 @@ void PromoterClass::PopulateInteractions(boost::unordered::unordered_map<int, in
 }
 void PromoterClass::AnnotateDistalInteractor(string promoter_chr, string interactor_chr, int promoter_resite, int interactor_resite, int promoter_pos, int interactor_pos, int pidx, int ExperimentNo){
  
-
 // Intra chromosomal interaction 
   if(promoter_chr.compare(interactor_chr) == 0){
 	  if( (abs(interactor_pos - promoter_pos)) > MinimumJunctionDistance){ // at least minjunctdist away
@@ -383,10 +386,11 @@ void PromoterClass::AnnotateDistalInteractor(string promoter_chr, string interac
 	  for(itx = proms[pidx].Signals_CTX.begin() ; itx < proms[pidx].Signals_CTX.end();++itx){
 		  if (interactor_chr.compare(itx->maptochrname) == 0){
 			  if(itx->signal.find(interactor_resite) == itx->signal.end()){
-				  itx->signal[interactor_resite] = new int[2]; // add a new entry
-				  for(int z = 0; z < 2; ++z)
-					  itx->signal[interactor_resite][z] = 0;
+				  itx->signal[interactor_resite] = new int[NOFEXPERIMENTS + 1]; // add a new entry
+				  for(int z = 0; z < NOFEXPERIMENTS; ++z)
+					  itx->signal[interactor_resite][z + 1] = 0;
 				  itx->signal[interactor_resite][ExperimentNo + 1] = 1;
+				  itx->signal[interactor_resite][0] = interactor_pos; // Actual read pos
 			  }
 			  else{ // if inserted before
 				  itx->signal[interactor_resite][ExperimentNo + 1] += 1;
@@ -399,12 +403,13 @@ void PromoterClass::AnnotateDistalInteractor(string promoter_chr, string interac
 	  if(!chrfound){
 		  proms[pidx].Signals_CTX.push_back(SignalStruct_CTX());
 		  proms[pidx].Signals_CTX.back().maptochrname.append(interactor_chr);
-		  proms[pidx].Signals_CTX.back().signal[interactor_resite] = new int[2];
+		  proms[pidx].Signals_CTX.back().signal[interactor_resite] = new int[NOFEXPERIMENTS + 1];
+		  for(int z = 0; z < NOFEXPERIMENTS; ++z)
+			  proms[pidx].Signals_CTX.back().signal[interactor_resite][z + 1] = 0;
 		  proms[pidx].Signals_CTX.back().signal[interactor_resite][ExperimentNo + 1] = 1;
 		  proms[pidx].Signals_CTX.back().signal[interactor_resite][0] = interactor_pos; // Actual read pos
 	  }
 	}	 
- 
 }
 void PromoterClass::AnnotateFeatFeatInteraction(int pidx1, int pidx2,int ExperimentNo){
 	bool foundbefore = 0;	

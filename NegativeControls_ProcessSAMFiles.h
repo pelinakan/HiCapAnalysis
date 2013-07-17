@@ -119,9 +119,9 @@ return pann;
 void NegCtrlClass::PopulateInteractions(boost::unordered::unordered_map<int, int* >& signals, int interactor_resite, int interactor_pos,int ExperimentNo){
 
 	if(signals.find(interactor_resite) == signals.end()){
-		signals[interactor_resite] = new int[2]; // add a new entry
-		for(int z = 0; z < 2; ++z)
-			signals[interactor_resite][z] = 0;
+		signals[interactor_resite] = new int[NOFEXPERIMENTS + 1]; // add a new entry
+		for(int z = 0; z < (NOFEXPERIMENTS); ++z)
+			signals[interactor_resite][z + 1] = 0;
 		//		cout << "new   " << signals[interactor_resite][ExperimentNo + 1] << "   ";
 		signals[interactor_resite][ExperimentNo + 1] = 1;
 		//		cout << signals[interactor_resite][ExperimentNo + 1] << endl;
@@ -150,9 +150,9 @@ void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int 
 		for(itx = negctrls[ncidx].Signals_CTX.begin() ; itx < negctrls[ncidx].Signals_CTX.end();++itx){
 			if (p_chr_2.compare(itx->maptochrname) == 0){
 				if(itx->signal.find(resite_2) == itx->signal.end()){
-					itx->signal[resite_2] = new int[2]; // add a new entry
-					for(int z = 0; z < 2; ++z)
-						itx->signal[resite_2][z] = 0;
+					itx->signal[resite_2] = new int[NOFEXPERIMENTS + 1]; // add a new entry
+					for(int z = 0; z < NOFEXPERIMENTS; ++z)
+						itx->signal[resite_2][z + 1] = 0;
 					itx->signal[resite_2][ExperimentNo + 1] = 1;
 					itx->signal[resite_2][0] = pos_2; // Actual read pos
 				}
@@ -167,7 +167,9 @@ void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int 
 		if(!chrfound){
 			negctrls[ncidx].Signals_CTX.push_back(SignalStruct_CTX());
 			negctrls[ncidx].Signals_CTX.back().maptochrname = p_chr_2;
-			negctrls[ncidx].Signals_CTX.back().signal[resite_2] = new int[2];
+			negctrls[ncidx].Signals_CTX.back().signal[resite_2] = new int[NOFEXPERIMENTS + 1];
+			for(int z = 0; z < NOFEXPERIMENTS; ++z)
+				negctrls[ncidx].Signals_CTX.back().signal[resite_2][z +1] = 0;
 			negctrls[ncidx].Signals_CTX.back().signal[resite_2][ExperimentNo + 1] = 1;
 			negctrls[ncidx].Signals_CTX.back().signal[resite_2][0] = pos_2;
 		}

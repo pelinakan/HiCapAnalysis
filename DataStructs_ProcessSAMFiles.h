@@ -33,7 +33,7 @@ boost::unordered::unordered_map<string, int> MetaPeakChrMap;
 
 struct FeattoFeatSignalStruct{
 	int feat_index; // within proms struct
-	double normsignal[4]; // The number of reads within the core promoter of the interactor promoter
+	double normsignal[NOFEXPERIMENTS]; // The number of reads within the core promoter of the interactor promoter
 };
 
 struct FeatureStruct{
