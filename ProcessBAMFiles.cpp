@@ -77,7 +77,7 @@ int MinNumberofReads; // To be entered by the user
 int CellType; // 0:mES, 1:XEN, 2:TS // read from the experiments file
 int TotalNumberofPairs = 0;
 const double SignificanceThreshold = 0.001; // Whether an interaction is significantly above background
-const int BUFFERSIZE = 20000000;
+const int BUFFERSIZE = 40000000;
 const int ClusterPromoters = 1000; //Cluster Promoters of Isoforms that are 500 bp away from each other
 const int coreprom_upstream = 3000;
 const int coreprom_downstream = 1000;

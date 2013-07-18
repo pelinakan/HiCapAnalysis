@@ -51,14 +51,13 @@ BamAlignment al,almate;
 vector < RESitesClass > dpnIIparallel; // Each thread will have its own RESiteClass
 
 int nofthreads, poolsize = 0;
-/*
+
 #pragma omp parallel
 {
 	nofthreads = omp_get_num_threads(); // Get num of threads
 }
-*/
 
-	nofthreads = 1;
+	//nofthreads = 1;
 	cout << "Number of Threads   " << nofthreads << endl;
 	for (int t = 0; t < nofthreads; ++t){
 		cout << "Thread No " << t << "    ";
@@ -80,13 +79,12 @@ while ( reader.GetNextAlignmentCore(al) ){
 
 	if(poolsize == BUFFERSIZE){
 		cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions... ";
-//#pragma omp parallel for num_threads (nofthreads)
+#pragma omp parallel for num_threads (nofthreads)
 		for(int i=0;i<poolsize;++i){
-//			cout << PairPool[i].chr_1 << '\t' << PairPool[i].startcoord << '\t' << PairPool[i].chr_2 << '\t' << PairPool[i].endcoord << endl;
-			// int tid = omp_get_thread_num(); // Get thread id
-			ProcessPairs(PairPool[i],dpnIIparallel[0],promoters,negctrls,ExperimentNo, NofPairsAnnWProms, NofPairsAnnWNegCtrls, NofPairsNoAnn); //Annotate the pair
+			 int tid = omp_get_thread_num(); // Get thread id
+			ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo, NofPairsAnnWProms, NofPairsAnnWNegCtrls, NofPairsNoAnn); //Annotate the pair
 		}
-		cout << endl << BAMFILENAME << "   " <<  poolsize << "   pairs finished, printing unusual pairs..." << endl;
+		cout << endl << BAMFILENAME << "   " <<  poolsize << "   pairs finished " << endl;
 /*
 		for(int i=0;i<poolsize;++i){
 			if (PairPool[i].flagged != 0)
@@ -100,20 +98,19 @@ while ( reader.GetNextAlignmentCore(al) ){
 }
 if(poolsize > 0){ // This is to read the last batch of pairs
 	cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions...";
-/*
+
 #pragma omp parallel
 	{
 		nofthreads = omp_get_num_threads(); // Get num of threads
 	}
-*/
-	nofthreads = 1;
-//#pragma omp parallel for num_threads (nofthreads)
+
+//	nofthreads = 1;
+#pragma omp parallel for num_threads (nofthreads)
 	for(int i = 0; i < poolsize; ++i){
-	//	cout << "last pool  " << PairPool[i].chr_1 << '\t' << PairPool[i].startcoord << '\t' << PairPool[i].chr_2 << '\t' << PairPool[i].endcoord << endl;
-	//	int tid = omp_get_thread_num(); // Get thread id
-		ProcessPairs(PairPool[i],dpnIIparallel[0],promoters,negctrls,ExperimentNo,NofPairsAnnWProms,NofPairsAnnWNegCtrls,NofPairsNoAnn); //Annotate the pair
+		int tid = omp_get_thread_num(); // Get thread id
+		ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo,NofPairsAnnWProms,NofPairsAnnWNegCtrls,NofPairsNoAnn); //Annotate the pair
 	}
-	cout << endl << BAMFILENAME << "   reading finished, printing unusual pairs..." << endl;
+	cout << endl << BAMFILENAME << "   reading finished" << endl;
 /*
 	for(int i=0;i<poolsize;++i){
 		if (PairPool[i].flagged != 0)
@@ -144,8 +141,8 @@ void ProcessBAM::ProcessPairs(PairStruct& thispair, RESitesClass& dpnII, Promote
 		if((abs(thispair.startcoord - renums1[1])) > MaxInsertLen ){
 			if(abs((thispair.startcoord - renums1[0])) < MaxInsertLen )
 				resite_firstinpair = renums1[0];
-			else
-				passed1 = 0;
+		//	else
+		//		passed1 = 0;
 		}
 	}
 	else
@@ -156,8 +153,8 @@ void ProcessBAM::ProcessPairs(PairStruct& thispair, RESitesClass& dpnII, Promote
 		if(abs((thispair.endcoord - renums2[0])) > MaxInsertLen){ 
 			if(abs(renums2[1] - thispair.endcoord) < MaxInsertLen) // if the junction is contained within the pair 
 				resite_secondinpair = renums2[1];
-			else
-				passed2 = 0;
+		//	else
+		//		passed2 = 0;
 		}
 	}
 	else
@@ -173,10 +170,12 @@ void ProcessBAM::ProcessPairs(PairStruct& thispair, RESitesClass& dpnII, Promote
 		else
 			++noann;
 	}
+/*
 	if(passed1 && passed2)
 		thispair.flagged = 0;  // Regular Pair
 	else // if the REsites are very far away from the read coordinate
 		thispair.flagged = 1; // RE sites are far away
 	if(!(re1found && re2found))	
 		thispair.flagged = 2; // RE sites cannot be found
+*/
 }
