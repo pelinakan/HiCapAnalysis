@@ -52,20 +52,13 @@ vector < RESitesClass > dpnIIparallel; // Each thread will have its own RESiteCl
 
 int nofthreads, poolsize = 0;
 
-#pragma omp parallel
-{
-	nofthreads = omp_get_num_threads(); // Get num of threads
-}
-
-	//nofthreads = 1;
+	nofthreads = 1;
 	cout << "Number of Threads   " << nofthreads << endl;
 	for (int t = 0; t < nofthreads; ++t){
 		cout << "Thread No " << t << "    ";
 		dpnIIparallel.push_back(RESitesClass());
 		dpnIIparallel.back().InitialiseVars(); // Initialize all RESiteClass
 	}
-
-//	ofstream flagged("flagged_interactions.txt");
 //Read the BAM file into PairPool vector
 	cout << "Reading BAM file..." << endl;
 while ( reader.GetNextAlignmentCore(al) ){
@@ -79,18 +72,11 @@ while ( reader.GetNextAlignmentCore(al) ){
 
 	if(poolsize == BUFFERSIZE){
 		cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions... ";
-#pragma omp parallel for num_threads (nofthreads)
+		int tid = 0;
 		for(int i=0;i<poolsize;++i){
-			 int tid = omp_get_thread_num(); // Get thread id
 			ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo, NofPairsAnnWProms, NofPairsAnnWNegCtrls, NofPairsNoAnn); //Annotate the pair
 		}
 		cout << endl << BAMFILENAME << "   " <<  poolsize << "   pairs finished " << endl;
-/*
-		for(int i=0;i<poolsize;++i){
-			if (PairPool[i].flagged != 0)
-				flagged << PairPool[i].chr_1 << '\t' << PairPool[i].startcoord << '\t' << PairPool[i].chr_2 << '\t' << PairPool[i].endcoord << '\t' << PairPool[i].flagged << endl;
-		}
-*/
 		delete[] PairPool;
 		PairPool = new PairStruct[BUFFERSIZE];
 		poolsize = 0;
@@ -99,24 +85,12 @@ while ( reader.GetNextAlignmentCore(al) ){
 if(poolsize > 0){ // This is to read the last batch of pairs
 	cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions...";
 
-#pragma omp parallel
-	{
-		nofthreads = omp_get_num_threads(); // Get num of threads
-	}
-
-//	nofthreads = 1;
-#pragma omp parallel for num_threads (nofthreads)
+	nofthreads = 1;
+	int tid = 0;
 	for(int i = 0; i < poolsize; ++i){
-		int tid = omp_get_thread_num(); // Get thread id
 		ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo,NofPairsAnnWProms,NofPairsAnnWNegCtrls,NofPairsNoAnn); //Annotate the pair
 	}
 	cout << endl << BAMFILENAME << "   reading finished" << endl;
-/*
-	for(int i=0;i<poolsize;++i){
-		if (PairPool[i].flagged != 0)
-			flagged << PairPool[i].chr_1 << '\t' << PairPool[i].startcoord << '\t' << PairPool[i].chr_2 << '\t' << PairPool[i].endcoord << '\t' << PairPool[i].flagged << endl;
-	}
-*/
 	delete[] PairPool;
 	PairPool = new PairStruct[BUFFERSIZE];
 	poolsize = 0;
