@@ -95,8 +95,7 @@ if(poolsize > 0){ // This is to read the last batch of pairs
 	PairPool = new PairStruct[BUFFERSIZE];
 	poolsize = 0;
 }
-cout << "Number of Pairs Annotated with Promoters    " << NofPairsAnnWProms << endl;
-cout << "Number of Pairs Annotated with NegCtrls     " << NofPairsAnnWNegCtrls << endl;
+cout << "Number of Pairs Annotated with Enhancers     " << NofPairsAnnWNegCtrls << endl;
 cout << "Number of Pairs with No Annotation           " << NofPairsNoAnn << endl;
 
 }
@@ -134,16 +133,16 @@ void ProcessBAM::ProcessPairs(PairStruct& thispair, RESitesClass& dpnII, Promote
 	else
 		resite_secondinpair = thispair.endcoord;
 
-	pairann = promoters.AnnotatewithPromoters(thispair.chr_1,resite_firstinpair,thispair.startcoord,thispair.chr_2,resite_secondinpair,thispair.endcoord,dpnII,ExperimentNo);
-	if(pairann)
-		++annwp;
-	else {// If the pair is not annotated with promoters
-		pairann = negctrls.AnnotateWithNegCtrls(thispair.chr_1,resite_firstinpair,thispair.startcoord,thispair.chr_2,resite_secondinpair,thispair.endcoord,dpnII,ExperimentNo);
+//	pairann = promoters.AnnotatewithPromoters(thispair.chr_1,resite_firstinpair,thispair.startcoord,thispair.chr_2,resite_secondinpair,thispair.endcoord,dpnII,ExperimentNo);
+//	if(pairann)
+//		++annwp;
+//	else {// If the pair is not annotated with promoters
+		pairann = negctrls.AnnotateWithEnhancers(thispair.chr_1,resite_firstinpair,thispair.startcoord,thispair.chr_2,resite_secondinpair,thispair.endcoord,dpnII,ExperimentNo);
 		if(pairann)
 			++annwnc;
 		else
 			++noann;
-	}
+//	}
 /*
 	if(passed1 && passed2)
 		thispair.flagged = 0;  // Regular Pair

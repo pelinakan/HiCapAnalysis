@@ -149,6 +149,7 @@ int main (int argc,char* argv[]){
 //   --        INITIALISE CLASSES   --
 	PromoterClass Promoters;
 	NegCtrlClass NegativeControls;
+	NegCtrlClass Enhancers;
 	ProbeSet mm9probes;
 	DetermineBackgroundLevels background;
 	ProcessBAM bamfile;
@@ -159,12 +160,15 @@ int main (int argc,char* argv[]){
 	dpnIIsites.InitialiseVars();
 	mapp.InitialiseVars();
 //-------------------//------------------------------
-	Promoters.InitialiseData();
-	Promoters.ReadPromoterAnnotation(dpnIIsites, mapp);
-	cout << "Promoters Annotated" << endl;
-	NegativeControls.InitialiseData();
+//	Promoters.InitialiseData();
+//	Promoters.ReadPromoterAnnotation(dpnIIsites, mapp);
+//	cout << "Promoters Annotated" << endl;
+	NegativeControls.InitialiseData(400);
 	NegativeControls.FillNegativeCtrls(dpnIIsites, mapp);
 	cout << "Negative Controls Annotated" << endl;
+	//Enhancers are read as negative controls
+	Enhancers.InitialiseData(99900);
+	Enhancers.FillEnhancers_asNegCtrls(dpnIIsites,mapp);
 
 	ReadMetaPeakFile(); // If peaks are already processed.
 
@@ -181,21 +185,21 @@ int main (int argc,char* argv[]){
 	do{ // Reads all the pairs in each experiment and fills the interaction maps
 		ExperimentNames.push_back(ExperimentName);
 		cout << BAMFILENAME << "     will be read" << endl;
-		bamfile.ProcessTheBAMFile(Promoters,NegativeControls,mm9probes,BAMFILENAME, ExperimentNo);
+		bamfile.ProcessTheBAMFile(Promoters,Enhancers,mm9probes,BAMFILENAME, ExperimentNo);
 		
 		cout << "Detecting Interactions";
 		background.CalculateMeanandStdRegress(NegativeControls, ExperimentName, ExperimentNo); 
 		cout << ". ";
 		
-		EnrichedBins.DetectEnrichedInteractionBins(Promoters,background,ExperimentName,ExperimentNo);
-		cout << ". ";
-		EnrichedBins.AssociatePeaksWithIntBins(Promoters,ExperimentName,dpnIIsites);
+//		EnrichedBins.DetectEnrichedInteractionBins(Promoters,background,ExperimentName,ExperimentNo);
+//		cout << ". ";
+//		EnrichedBins.AssociatePeaksWithIntBins(Promoters,ExperimentName);
+//		cout << ". ";
+
+		EnrichedBins.DetectEnrichedInteractionBins_NegCtrls(Enhancers,background,ExperimentName,ExperimentNo);
 		cout << ". ";
 
-		EnrichedBins.DetectEnrichedInteractionBins_NegCtrls(NegativeControls,background,ExperimentName,ExperimentNo);
-		cout << ". ";
-
-		EnrichedBins.AssociatePeaksWithIntBins_NegCtrls(NegativeControls,ExperimentName,dpnIIsites);
+		EnrichedBins.AssociatePeaksWithIntBins_NegCtrls(Enhancers,ExperimentName,dpnIIsites);
 		cout << "finished" << endl;
 		
 		cout << "Cleaning the background" << endl;
@@ -210,6 +214,6 @@ int main (int argc,char* argv[]){
 
 	int NofofExperiments = ExperimentNo;
 
-	EnrichedBins.PrintAllInteractions(Promoters,NegativeControls,BaseFileName, NofofExperiments, ExperimentNames); //In one file
+	EnrichedBins.PrintAllInteractions(Promoters,Enhancers,BaseFileName, NofofExperiments, ExperimentNames); //In one file
 
 }

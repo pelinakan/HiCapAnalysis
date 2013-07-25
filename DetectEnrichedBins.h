@@ -1,7 +1,7 @@
 class DetectEnrichedBins{
 public:
 	void DetectEnrichedInteractionBins(PromoterClass&, DetermineBackgroundLevels, string, int); // Find bins that have above background level interactions 
-	void AssociatePeaksWithIntBins(PromoterClass&,string, RESitesClass&);
+	void AssociatePeaksWithIntBins(PromoterClass&,string);
 	void DetectEnrichedInteractionBins_NegCtrls(NegCtrlClass&, DetermineBackgroundLevels, string, int); // Find bins that have above background level interactions 
 	void AssociatePeaksWithIntBins_NegCtrls(NegCtrlClass&,string,RESitesClass&);
 	void PrintAllInteractions(PromoterClass&,NegCtrlClass&,string, int,vector < string >);
@@ -62,12 +62,20 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 //	MappabilityClass mapp;
 //	mapp.InitialiseVars();
 
-	int dist = 0;
+int nofthreads;
+#pragma omp parallel
+	{
+		nofthreads = omp_get_num_threads(); // Get num of threads
+	}
+	//	nofthreads = 1;
+	cout << "Number of Threads used to detect interactions" << nofthreads << endl;
 	// Upstream
+#pragma omp parallel for num_threads (nofthreads)
 	for(int i = 0; i < prs.NofPromoters; ++i){
 		boost::unordered::unordered_map<int, int* >::const_iterator it; //key:REpos, value[0]:genomic position 
 		for (it = prs.proms[i].Signals.signal_ups.begin(); it != prs.proms[i].Signals.signal_ups.end(); ++it){
 			bool enoughpairs = 0;
+			int dist = 0;
 			enoughpairs = CheckSupportingPairs(it->second);
 			if (enoughpairs){
 				if (prs.proms[i].strand =="+")
@@ -82,6 +90,7 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 	//Downstream
 		for (it = prs.proms[i].Signals.signal_down.begin(); it != prs.proms[i].Signals.signal_down.end(); ++it){
 			bool enoughpairs = 0;
+			int dist = 0;
 			enoughpairs = CheckSupportingPairs(it->second);
 			if (enoughpairs){
 					if (prs.proms[i].strand =="+")
@@ -97,6 +106,7 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 		for( int j = 0; j < prs.proms[i].Signals_CTX.size(); ++j){ // For each chromosome
 			for (it = prs.proms[i].Signals_CTX[j].signal.begin(); it != prs.proms[i].Signals_CTX[j].signal.end(); ++it){
 				bool enoughpairs = 0;
+				int dist = 0;
 				enoughpairs = CheckSupportingPairs(it->second);
 				if (enoughpairs){
 					FillInteractionStruct(prs.proms[i].interactions,prs.proms[i].Signals_CTX[j].maptochrname, -1, ExperimentNo, it->first, it->second, -1,'X');
@@ -105,16 +115,33 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 		}
 	}
 }
-void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string BaseFileName, RESitesClass& dpnII){
-//	cout << "Associating with peaks" << endl;
+void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string BaseFileName){
+
+vector < RESitesClass > dpnIIparallel; // Each thread will have its own RESiteClass
+int nofthreads;
+#pragma omp parallel
+	{
+		nofthreads = omp_get_num_threads(); // Get num of threads
+	}
+
+	//	nofthreads = 1;
+	cout << "Number of Threads   " << nofthreads << endl;
+	for (int t = 0; t < nofthreads; ++t){
+		cout << "Thread No " << t << "    ";
+		dpnIIparallel.push_back(RESitesClass());
+		dpnIIparallel.back().InitialiseVars(); // Initialize all RESiteClass
+	}
+	cout << "Associating with peaks" << endl;
+#pragma omp parallel for num_threads (nofthreads)
 	for(int i = 0; i < prs.NofPromoters; ++i){
 //		cout << i << '\t' << prs.proms[i].interactions.size() << '\t' ;
 		for(int j = 0; j < prs.proms[i].interactions.size(); ++j){
+			int tid = omp_get_thread_num(); // Get thread id
 			bool peakfound = 0, refound = 0;
 			int *renums;
 			renums = new int [2];
 			if(prs.proms[i].interactions[j].type == 'D'){
-				refound = dpnII.GettheREPositions(prs.proms[i].chr,prs.proms[i].interactions[j].resites[0],renums); // Interactor RE fragment
+				refound = dpnIIparallel[tid].GettheREPositions(prs.proms[i].chr,prs.proms[i].interactions[j].resites[0],renums); // Interactor RE fragment
 				if(refound)
 					prs.proms[i].interactions[j].resites[1] = renums[1];
 				else{
@@ -122,7 +149,7 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 				}
 			}
 			else{ // Upstream
-				refound = dpnII.GettheREPositions(prs.proms[i].chr,(prs.proms[i].interactions[j].resites[0] - 1),renums); // Interactor RE fragment
+				refound = dpnIIparallel[tid].GettheREPositions(prs.proms[i].chr,(prs.proms[i].interactions[j].resites[0] - 1),renums); // Interactor RE fragment
 				if(refound)
 					prs.proms[i].interactions[j].resites[1] = renums[0];	
 				else
@@ -140,7 +167,7 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 				else{
 					int *repos;
 					repos = new int [2];
-					refound = dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(prs.proms[i].interactions[j].resites[0] - 1),repos);
+					refound = dpnIIparallel[tid].GettheREPositions(prs.proms[i].interactions[j].chr,(prs.proms[i].interactions[j].resites[0] - 1),repos);
 					if(refound){
 						do{
 							if(metaPeaks[citer->second].metapeaks.find(repos[0]) != metaPeaks[citer->second].metapeaks.end()){
@@ -152,7 +179,7 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 								break;
 							}
 							else{
-								refound = dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(repos[0] - 1),repos);
+								refound = dpnIIparallel[tid].GettheREPositions(prs.proms[i].interactions[j].chr,(repos[0] - 1),repos);
 								if(!refound){
 									prs.proms[i].interactions[j].peakoverlap = false;
 									break;
@@ -164,7 +191,7 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 						prs.proms[i].interactions[j].peakoverlap = false;
 					
 					if(!peakfound){
-						refound = dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(prs.proms[i].interactions[j].resites[0]),repos);
+						refound = dpnIIparallel[tid].GettheREPositions(prs.proms[i].interactions[j].chr,(prs.proms[i].interactions[j].resites[0]),repos);
 						if(refound){
 							do{
 								if(metaPeaks[citer->second].metapeaks.find(repos[1]) != metaPeaks[citer->second].metapeaks.end()){
@@ -176,7 +203,7 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 									break;
 								}
 								else{
-									refound = dpnII.GettheREPositions(prs.proms[i].interactions[j].chr,(repos[1]),repos);
+									refound = dpnIIparallel[tid].GettheREPositions(prs.proms[i].interactions[j].chr,(repos[1]),repos);
 									if(!refound){
 										prs.proms[i].interactions[j].peakoverlap = false;
 										break;
@@ -313,7 +340,8 @@ for(int i = 0; i < ngs.NofNegCtrls; ++i){
 }
 
 void DetectEnrichedBins::PrintAllInteractions(PromoterClass& prs, NegCtrlClass& ngs, string BaseFileName, int NumberofExperiments,vector < string > ExperimentNames){
-//Promoter Interactions
+/*
+	//Promoter Interactions
 	string FileName;
 	FileName.append(BaseFileName);
 	FileName.append("SignificantInteractions");
@@ -355,15 +383,16 @@ void DetectEnrichedBins::PrintAllInteractions(PromoterClass& prs, NegCtrlClass& 
 		}
 	}
 	outf1.close();
+	*/
 //Negative Control Interactions
 	string FileName2;
 	FileName2.append(BaseFileName);
 	FileName2.append("SignificantInteractions");
-	FileName2.append("_NegCtrls");
+	FileName2.append("_Enhancers");
 	FileName2.append(".txt");
 	ofstream outf2(FileName2.c_str());
 
-	outf2 << "NegCtrl ID" << '\t' << "NegCtrl UCSC" << '\t' << "Number of RE sites within core feature" << '\t' << "Interactor Chr " << '\t' << "Interactor RE site1" << '\t' << "Interactor RE site2" << '\t'
+	outf2 << "Enhancer ID" << '\t' << "Enhancer UCSC" << '\t' << "Number of RE sites within core feature" << '\t' << "Interactor Chr " << '\t' << "Interactor RE site1" << '\t' << "Interactor RE site2" << '\t'
 		  << "Read Position" << '\t'  << "Distance" << '\t';
 	for (int e = 0; e < NumberofExperiments; ++e)
 		outf2 << ExperimentNames[e] << "_SuppPairs" << '\t';
@@ -384,6 +413,7 @@ void DetectEnrichedBins::PrintAllInteractions(PromoterClass& prs, NegCtrlClass& 
 		}
 	}
 	outf2.close();
+	/*
 //Promoter-promoter Interactions
 	string FileName3;
 	FileName3.append(BaseFileName);
@@ -431,15 +461,16 @@ void DetectEnrichedBins::PrintAllInteractions(PromoterClass& prs, NegCtrlClass& 
 		}
 	}
 	outf3.close();
+	*/
 //Negative control - Negative control interactions
 	string FileName4;
 	FileName4.append(BaseFileName);
-	FileName4.append("SignificantInteractions_NegCtrlstoNegCtrls");
+	FileName4.append("SignificantInteractions_EnhancerstoEnhancers");
 	FileName4.append(".txt");
 	ofstream outf4(FileName4.c_str());
 
-	outf4 << "Negctrl1 UCSC" << '\t' << "Number of RE sites within negative ctrl (3000 bases)" << '\t' << "Mappability of negative controls (3000 bases)" << '\t'
-		<< "Negctrl2 UCSC" << '\t' << "Number of RE sites within negative ctrl (3000 bases)" << '\t' << "Mappability of negative controls (3000 bases)" << '\t';
+	outf4 << "Enhancer1 UCSC" << '\t' << "Number of RE sites within Enhancer 1 (3000 bases)" << '\t' << "Mappability of Enhancer 1 (3000 bases)" << '\t'
+		  << "Enhancer2 UCSC" << '\t' << "Number of RE sites within Enhancer 2 (3000 bases)" << '\t' << "Mappability of Enhancer 2 (3000 bases)" << '\t';
 	for (int e = 0; e < NumberofExperiments; ++e)
 		outf4 << ExperimentNames[e] << "_Supp_Pairs" << '\t';
 	outf4 << endl;

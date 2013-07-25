@@ -1,12 +1,15 @@
 
-
 class NegCtrlClass{
 public:
 	NegativeControlStruct *negctrls;
+	vector <string> ChrNames_enhancers;
+	vector < vector <int> > enhancer_indexes; //Based on enhancer chromosome
 int NofNegCtrls;
-void InitialiseData(void);
+void InitialiseData(int);
 void FillNegativeCtrls(RESitesClass&, MappabilityClass&);
+void FillEnhancers_asNegCtrls(RESitesClass&, MappabilityClass&);
 bool AnnotateWithNegCtrls(string,int,int,string,int,int,RESitesClass&,int);
+bool AnnotateWithEnhancers(string,int,int,string,int,int,RESitesClass&,int);
 void BinPeaks(int,int,int);
 
 private:
@@ -15,12 +18,10 @@ private:
 	void PopulateInteractions(boost::unordered::unordered_map<int, int* >&, int, int, int);
 
 };
-void NegCtrlClass::InitialiseData(){
-	NofNegCtrls=366;
-	negctrls = new NegativeControlStruct [400];
-	for(int i = 0; i < NofNegCtrls;++i){
+void NegCtrlClass::InitialiseData(int size){
+	negctrls = new NegativeControlStruct [size];
+	for(int i = 0; i < size;++i)
 		negctrls[i].closestREsitenums = new int [2];
-	}
 }
 
 void NegCtrlClass::FillNegativeCtrls(RESitesClass& dpnIIsites, MappabilityClass& mapp){
@@ -73,6 +74,59 @@ NofNegCtrls=i-1;
 	}
 }
 
+void NegCtrlClass::FillEnhancers_asNegCtrls(RESitesClass& dpnIIsites, MappabilityClass& mapp){
+
+#ifdef UNIX
+	string filename1,filename2;
+	string dirname="/bubo/proj/b2011029/bin/3CAnalysis/";
+	filename1.append(dirname);
+	filename1.append("HiCap.merged.enhancers.txt");
+	ifstream infile1(filename1.c_str());
+#endif
+
+#ifdef WINDOWS
+	ifstream infile1("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\100exons_min100kfromTSS_GATC_150perend.bed");
+#endif
+	int i=0;
+	string chr;
+	do{
+		infile1 >>	negctrls[i].chr >> negctrls[i].midpoint >> negctrls[i].closestREsitenums[0] >> negctrls[i].closestREsitenums[1];
+		negctrls[i].start = negctrls[i].midpoint - AssociateInteractions;
+		negctrls[i].end = negctrls[i].midpoint + AssociateInteractions;
+		negctrls[i].type="E";
+		++i;
+	}while(!infile1.eof());
+	infile1.close();
+	NofNegCtrls=i-1;
+
+	for (i = 0; i < NofNegCtrls; ++i){
+		negctrls[i].nofRESites = dpnIIsites.GetRESitesCount(negctrls[i].chr,negctrls[i].start,negctrls[i].end);
+//		dpnIIsites.GettheREPositions(negctrls[i].chr,negctrls[i].midpoint,negctrls[i].closestREsitenums);
+//		negctrls[i].featmappability = mapp.GetMappability(negctrls[i].chr, negctrls[i].start, (negctrls[i].end - negctrls[i].start));
+		negctrls[i].featmappability = 0;
+	}
+
+//Index Enhancers
+	int found = 0;
+	for(int eindex = 0; eindex < NofNegCtrls; ++eindex){
+		found = -1;
+		for(i = 0; i < ChrNames_enhancers.size();++i){
+			if(negctrls[eindex].chr.compare(ChrNames_enhancers[i]) == 0) 
+				found = i;
+		}
+		if(found == -1){
+			ChrNames_enhancers.push_back(negctrls[eindex].chr);
+			enhancer_indexes.push_back(vector<int>());
+			enhancer_indexes.back().push_back(eindex);
+		}
+		else
+			enhancer_indexes[found].push_back(eindex);
+
+	}
+	cout << "Enhancer Chromosome Indexes Generated" << endl;
+
+
+}
 bool NegCtrlClass::AnnotateWithNegCtrls(string p_chr_1, int re_firstinpair, int pos_firstinpair, string p_chr_2, int re_secondinpair, int pos_secondinpair, RESitesClass& dpnIIsites,int ExperimentNo){
 
 bool pann = false;
@@ -115,6 +169,67 @@ for(int m = 0; m < NofNegCtrls; ++m){ //Iterate over all refseq genes on that ch
 	}			
 }
 return pann;
+}
+bool NegCtrlClass::AnnotateWithEnhancers(string p_chr_1, int re_firstinpair, int pos_firstinpair, string p_chr_2, int re_secondinpair, int pos_secondinpair, RESitesClass& dpnIIsites,int ExperimentNo){
+	int enh1_chrindex, enh2_chrindex;
+	bool pann = 0;
+	bool chrfound1 = 0, chrfound2 = 0;
+
+	p_chr_1.erase(p_chr_1.find_last_not_of(" \n\r\t")+1); //trim the string
+	for(int k = 0;k < ChrNames_enhancers.size(); ++k){
+		if(ChrNames_enhancers[k].compare(p_chr_1.c_str()) == 0){ // Find the right chromosome (genes are indexed acc. to which chromosome they are on
+			enh1_chrindex = k;
+			chrfound1 = 1;
+			break;
+		}
+	}
+	p_chr_2.erase(p_chr_2.find_last_not_of(" \n\r\t")+1);
+	for(int k = 0;k < ChrNames_enhancers.size(); ++k){
+		if(ChrNames_enhancers[k].compare(p_chr_2.c_str()) == 0){ // Find the right chromosome (genes are indexed acc. to which chromosome they are on
+			enh2_chrindex = k;
+			chrfound2 = 1;
+			break;
+		}
+	}
+
+	int eidx1 = -1, eidx2 = -1; // PromoterID
+	if(chrfound1){
+		for(int i = 0; i < enhancer_indexes[enh1_chrindex].size(); ++i){ //Iterate over all refseq genes on that chromosome
+			if((negctrls[enhancer_indexes[enh1_chrindex][i]].start <= pos_firstinpair && negctrls[enhancer_indexes[enh1_chrindex][i]].end >= pos_firstinpair)){ // If the readstart is contained within the core promoter
+				eidx1 =	enhancer_indexes[enh1_chrindex][i];
+				pann = 1; // Read is annotated with a promoter
+				if(p_chr_1.compare(p_chr_2) == 0 && (negctrls[eidx1].start <= pos_secondinpair && negctrls[eidx1].end >= pos_secondinpair))
+					return pann; // if the pair of the read is also contained within the core promoter
+				if(chrfound2){	// Check if the pair is close to another promoter
+					for(int m = 0; m < enhancer_indexes[enh2_chrindex].size(); ++m){ //Iterate over all refseq genes on that chromosome
+						if((negctrls[enhancer_indexes[enh2_chrindex][m]].start <= pos_secondinpair && negctrls[enhancer_indexes[enh2_chrindex][m]].end >= pos_secondinpair)){ // If the readstart is contained within the core promoter
+							eidx2 =	enhancer_indexes[enh2_chrindex][m]; // It is prom-prom interaction
+							AnnotateFeatFeatInteraction(eidx1, eidx2,ExperimentNo);
+							AnnotateFeatFeatInteraction(eidx2, eidx1,ExperimentNo);
+							return pann;
+						}
+					}
+				} // Checked if it is prom-prom interaction
+				AnnotateDistalInteractor(p_chr_1,p_chr_2,re_firstinpair,re_secondinpair,pos_firstinpair, pos_secondinpair, eidx1,ExperimentNo);
+				return pann;
+			}
+		}
+	}// First read in the pair processed
+	// Annotate the second read in the pair (this could only be distal-prom interaction)
+	if(chrfound2){
+		for(int m = 0; m < enhancer_indexes[enh2_chrindex].size(); ++m){ //Iterate over all refseq genes on that chromosome
+			if((negctrls[enhancer_indexes[enh2_chrindex][m]].start <= pos_secondinpair && negctrls[enhancer_indexes[enh2_chrindex][m]].end >= pos_secondinpair)){ // If the readstart is contained within the core promoter
+				eidx2 =	enhancer_indexes[enh2_chrindex][m];
+				//	if (proms[pidx2].genes[0] == "0610005C13Rik")
+				//		cout << proms[pidx2].genes[0] << '\t' << p_chr_2 << '\t' << p_chr_1 << '\t' << pos_secondinpair << '\t' << pos_firstinpair << '\t' << resite_secondinpair << '\t' << resite_firstinpair << endl;
+				pann = 1;
+				AnnotateDistalInteractor(p_chr_2,p_chr_1,re_secondinpair, re_firstinpair,pos_secondinpair,pos_firstinpair,eidx2,ExperimentNo); 
+				return pann;
+			}			
+		}
+	}
+	return pann;
+
 }
 void NegCtrlClass::PopulateInteractions(boost::unordered::unordered_map<int, int* >& signals, int interactor_resite, int interactor_pos,int ExperimentNo){
 
