@@ -1,7 +1,7 @@
 class DetectEnrichedBins{
 public:
 	void DetectEnrichedInteractionBins(PromoterClass&, DetermineBackgroundLevels, string, int); // Find bins that have above background level interactions 
-	void AssociatePeaksWithIntBins(PromoterClass&,string, RESitesClass&);
+	void AssociatePeaksWithIntBins(PromoterClass&,string,RESitesClass&);
 	void DetectEnrichedInteractionBins_NegCtrls(NegCtrlClass&, DetermineBackgroundLevels, string, int); // Find bins that have above background level interactions 
 	void AssociatePeaksWithIntBins_NegCtrls(NegCtrlClass&,string,RESitesClass&);
 	void PrintAllInteractions(PromoterClass&,NegCtrlClass&,string, int,vector < string >);
@@ -52,7 +52,7 @@ void DetectEnrichedBins::FillInteractionStruct(vector<InteractionStruct>& intera
 		interactionstr.back().supp_pairs[ExperimentNo] = values[ExperimentNo + 1];
 		interactionstr.back().chr = chr;
 		interactionstr.back().distance = dist; 
-		interactionstr.back().resites[0] = resite;
+			interactionstr.back().resites[0] = resite;
 		interactionstr.back().pos = values[0];
 		interactionstr.back().type = inttype; // U: upstream , D: downstream , X: inter-chromosomal
 	}
@@ -62,12 +62,11 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 //	MappabilityClass mapp;
 //	mapp.InitialiseVars();
 
-	int dist = 0;
-	// Upstream
 	for(int i = 0; i < prs.NofPromoters; ++i){
 		boost::unordered::unordered_map<int, int* >::const_iterator it; //key:REpos, value[0]:genomic position 
 		for (it = prs.proms[i].Signals.signal_ups.begin(); it != prs.proms[i].Signals.signal_ups.end(); ++it){
 			bool enoughpairs = 0;
+			int dist = 0;
 			enoughpairs = CheckSupportingPairs(it->second);
 			if (enoughpairs){
 				if (prs.proms[i].strand =="+")
@@ -82,6 +81,7 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 	//Downstream
 		for (it = prs.proms[i].Signals.signal_down.begin(); it != prs.proms[i].Signals.signal_down.end(); ++it){
 			bool enoughpairs = 0;
+			int dist = 0;
 			enoughpairs = CheckSupportingPairs(it->second);
 			if (enoughpairs){
 					if (prs.proms[i].strand =="+")
@@ -97,6 +97,7 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 		for( int j = 0; j < prs.proms[i].Signals_CTX.size(); ++j){ // For each chromosome
 			for (it = prs.proms[i].Signals_CTX[j].signal.begin(); it != prs.proms[i].Signals_CTX[j].signal.end(); ++it){
 				bool enoughpairs = 0;
+				int dist = 0;
 				enoughpairs = CheckSupportingPairs(it->second);
 				if (enoughpairs){
 					FillInteractionStruct(prs.proms[i].interactions,prs.proms[i].Signals_CTX[j].maptochrname, -1, ExperimentNo, it->first, it->second, -1,'X');
@@ -105,29 +106,19 @@ void DetectEnrichedBins::DetectEnrichedInteractionBins(PromoterClass &prs, Deter
 		}
 	}
 }
-void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string BaseFileName, RESitesClass& dpnII){
-//	cout << "Associating with peaks" << endl;
+void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string BaseFileName,RESitesClass& dpnII){
+
+	cout << "Associating with peaks" << endl;
 	for(int i = 0; i < prs.NofPromoters; ++i){
-//		cout << i << '\t' << prs.proms[i].interactions.size() << '\t' ;
 		for(int j = 0; j < prs.proms[i].interactions.size(); ++j){
 			bool peakfound = 0, refound = 0;
 			int *renums;
 			renums = new int [2];
-			if(prs.proms[i].interactions[j].type == 'D'){
-				refound = dpnII.GettheREPositions(prs.proms[i].chr,prs.proms[i].interactions[j].resites[0],renums); // Interactor RE fragment
-				if(refound)
-					prs.proms[i].interactions[j].resites[1] = renums[1];
-				else{
-					prs.proms[i].interactions[j].peakoverlap = false;
-				}
-			}
-			else{ // Upstream
-				refound = dpnII.GettheREPositions(prs.proms[i].chr,(prs.proms[i].interactions[j].resites[0] - 1),renums); // Interactor RE fragment
-				if(refound)
-					prs.proms[i].interactions[j].resites[1] = renums[0];	
-				else
-					prs.proms[i].interactions[j].peakoverlap = false;
-			}
+			refound = dpnII.GettheREPositions(prs.proms[i].chr,prs.proms[i].interactions[j].resites[0],renums); // Interactor RE fragment
+			if(refound)
+				prs.proms[i].interactions[j].resites[1] = renums[1];
+			else
+				prs.proms[i].interactions[j].peakoverlap = false;
 			boost::unordered::unordered_map<string, int>::const_iterator citer = MetaPeakChrMap.find(prs.proms[i].interactions[j].chr);
 			if(refound && !(MetaPeakChrMap.find(prs.proms[i].interactions[j].chr) == MetaPeakChrMap.end()) ){ // Find the right peak map wrt chromosome
 				if(metaPeaks[citer->second].metapeaks.find(prs.proms[i].interactions[j].resites[0]) != metaPeaks[citer->second].metapeaks.end()){
@@ -192,7 +183,6 @@ void DetectEnrichedBins::AssociatePeaksWithIntBins(PromoterClass& prs,string Bas
 				}
 			}
 		}
-//		cout << "done" << endl;
 	}
 }
 void DetectEnrichedBins::DetectEnrichedInteractionBins_NegCtrls(NegCtrlClass &ngs,DetermineBackgroundLevels background,string BaseFileName,int ExperimentNo){

@@ -27,7 +27,6 @@ void NegCtrlClass::FillNegativeCtrls(RESitesClass& dpnIIsites, MappabilityClass&
 
 #ifdef UNIX
 string filename1,filename2;
-string dirname="/bubo/proj/b2011029/bin/3CAnalysis/";
 filename1.append(dirname);
 filename1.append("100exons_min100kfromTSS_GATC_150perend.bed");
 ifstream infile1(filename1.c_str());

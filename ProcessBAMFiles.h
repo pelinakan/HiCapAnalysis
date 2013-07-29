@@ -110,27 +110,12 @@ void ProcessBAM::ProcessPairs(PairStruct& thispair, RESitesClass& dpnII, Promote
 	
 	bool re1found = dpnII.GettheREPositions(thispair.chr_1,thispair.startcoord,renums1);
 	bool re2found = dpnII.GettheREPositions(thispair.chr_2,thispair.endcoord,renums2);
-	if(re1found){	
-		resite_firstinpair = renums1[1];
-		if((abs(thispair.startcoord - renums1[1])) > MaxInsertLen ){
-			if(abs((thispair.startcoord - renums1[0])) < MaxInsertLen )
-				resite_firstinpair = renums1[0];
-		//	else
-		//		passed1 = 0;
-		}
-	}
+	if(re1found)	
+		resite_firstinpair = renums1[0];
 	else
 		resite_firstinpair = thispair.startcoord;
-
-	if(re2found){
+	if(re2found)
 		resite_secondinpair = renums2[0];
-		if(abs((thispair.endcoord - renums2[0])) > MaxInsertLen){ 
-			if(abs(renums2[1] - thispair.endcoord) < MaxInsertLen) // if the junction is contained within the pair 
-				resite_secondinpair = renums2[1];
-		//	else
-		//		passed2 = 0;
-		}
-	}
 	else
 		resite_secondinpair = thispair.endcoord;
 

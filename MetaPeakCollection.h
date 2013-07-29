@@ -75,7 +75,17 @@ for (int i = 0; i < metaPeaks.size();++i ){
 
 void ReadMetaPeakFile(void){
 
+#ifdef UNIX
+	string filename1;
+	filename1.append(dirname);
+	filename1.append("MM9.MetaPeaks_All_13_PeakFiles.txt");
+	ifstream file(filename1.c_str());
+#endif
+
+#ifdef WINDOWS
 	ifstream file("MM9.MetaPeaks_All_13_PeakFiles.txt");
+#endif
+
 	string temp, chr, peak;
 	int repos, index;
 	

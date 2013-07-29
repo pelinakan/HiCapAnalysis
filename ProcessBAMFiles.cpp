@@ -68,6 +68,12 @@ using namespace alglib_impl;
 #define UNIX
 //#define WINDOWS
 //#define GraphGC
+//#define CMB
+
+#ifdef CMB
+string dirname =  "/mnt/crick/pelina/bin/supportingFiles/";
+#endif
+
 string dirname = "/bubo/home/h20/pelin/3Cproj/bin/supportingFiles/";
 string wdirname = "C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\PeakFiles\\";
 string ExpFileName;
