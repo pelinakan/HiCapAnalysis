@@ -68,7 +68,14 @@ using namespace alglib_impl;
 #define UNIX
 //#define WINDOWS
 //#define GraphGC
-string dirname = "/bubo/home/h20/pelin/3Cproj/bin/supportingFiles/";
+//#define CMB
+
+#ifdef CMB
+	string dirname =  "/mnt/crick/pelina/bin/HiCapAnalysis-readfrombam/supportingFiles/";
+#endif
+#ifdef UNIX
+	string dirname = "/bubo/home/h20/pelin/3Cproj/bin/supportingFiles/";
+#endif
 string wdirname = "C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\PeakFiles\\";
 string ExpFileName;
 
@@ -90,6 +97,7 @@ const int NOFEXPERIMENTS = 2; // Number of Experiments
 int padding = 700; //For Sequence Capture Probes
 double ExpressionThr = 2.0;
 double Mappability_Threshold = 0.5;
+string whichchr;
 
 
 #include "linear.h"
@@ -118,7 +126,7 @@ int main (int argc,char* argv[]){
 	string BaseFileName;
 #ifdef UNIX
 
-	if (argc < 5) {
+	if (argc < 6) {
 		print_usage();
 		return -1;
 	}
@@ -128,6 +136,8 @@ int main (int argc,char* argv[]){
 	MinNumberofReads = double(MinNumberofReads);
 	MinimumJunctionDistance = atoi(argv[3]);
 	BaseFileName = argv[4];
+	whichchr = argv[5];
+
 
 	cout << "Min Number of Pairs      " << MinNumberofReads << endl;
 	cout << "Min Junction Distance    " << MinimumJunctionDistance << endl;
@@ -168,7 +178,7 @@ int main (int argc,char* argv[]){
 	cout << "Negative Controls Annotated" << endl;
 	//Enhancers are read as negative controls
 	Enhancers.InitialiseData(99900);
-	Enhancers.FillEnhancers_asNegCtrls(dpnIIsites,mapp);
+	Enhancers.FillEnhancers_asNegCtrls(dpnIIsites,mapp,whichchr);
 
 	ReadMetaPeakFile(); // If peaks are already processed.
 
@@ -185,7 +195,7 @@ int main (int argc,char* argv[]){
 	do{ // Reads all the pairs in each experiment and fills the interaction maps
 		ExperimentNames.push_back(ExperimentName);
 		cout << BAMFILENAME << "     will be read" << endl;
-		bamfile.ProcessTheBAMFile(Promoters,Enhancers,mm9probes,BAMFILENAME, ExperimentNo);
+		bamfile.ProcessTheBAMFile(Promoters,Enhancers,mm9probes,BAMFILENAME, ExperimentNo, whichchr);
 		
 		cout << "Detecting Interactions";
 		background.CalculateMeanandStdRegress(NegativeControls, ExperimentName, ExperimentNo); 

@@ -7,13 +7,13 @@ public:
 int NofNegCtrls;
 void InitialiseData(int);
 void FillNegativeCtrls(RESitesClass&, MappabilityClass&);
-void FillEnhancers_asNegCtrls(RESitesClass&, MappabilityClass&);
+void FillEnhancers_asNegCtrls(RESitesClass&, MappabilityClass&,string);
 bool AnnotateWithNegCtrls(string,int,int,string,int,int,RESitesClass&,int);
 bool AnnotateWithEnhancers(string,int,int,string,int,int,RESitesClass&,int);
 void BinPeaks(int,int,int);
 
 private:
-	void AnnotateDistalInteractor(string, string,int,int,int,int,int,int);
+	void AnnotateDistalInteractor(string, string,int,int,int,int,int);
 	void AnnotateFeatFeatInteraction(int, int,int);
 	void PopulateInteractions(boost::unordered::unordered_map<int, int* >&, int, int, int);
 
@@ -28,7 +28,6 @@ void NegCtrlClass::FillNegativeCtrls(RESitesClass& dpnIIsites, MappabilityClass&
 
 #ifdef UNIX
 string filename1,filename2;
-string dirname="/bubo/proj/b2011029/bin/3CAnalysis/";
 filename1.append(dirname);
 filename1.append("100exons_min100kfromTSS_GATC_150perend.bed");
 ifstream infile1(filename1.c_str());
@@ -74,11 +73,10 @@ NofNegCtrls=i-1;
 	}
 }
 
-void NegCtrlClass::FillEnhancers_asNegCtrls(RESitesClass& dpnIIsites, MappabilityClass& mapp){
+void NegCtrlClass::FillEnhancers_asNegCtrls(RESitesClass& dpnIIsites, MappabilityClass& mapp,string whichchr){
 
 #ifdef UNIX
 	string filename1,filename2;
-	string dirname="/bubo/proj/b2011029/bin/3CAnalysis/";
 	filename1.append(dirname);
 	filename1.append("HiCap.merged.enhancers.txt");
 	ifstream infile1(filename1.c_str());
@@ -87,18 +85,43 @@ void NegCtrlClass::FillEnhancers_asNegCtrls(RESitesClass& dpnIIsites, Mappabilit
 #ifdef WINDOWS
 	ifstream infile1("C:\\WORK\\3c-SeqCap\\CODES\\3C_Analysis\\HiCapAnalysis\\SupplementaryFiles\\100exons_min100kfromTSS_GATC_150perend.bed");
 #endif
-	int i=0;
+	int i=0,midpoint, rest,reend;
 	string chr;
+if(whichchr == "CTX"){
 	do{
-		infile1 >>	negctrls[i].chr >> negctrls[i].midpoint >> negctrls[i].closestREsitenums[0] >> negctrls[i].closestREsitenums[1];
-		negctrls[i].start = negctrls[i].midpoint - AssociateInteractions;
-		negctrls[i].end = negctrls[i].midpoint + AssociateInteractions;
+		infile1 >> chr >> midpoint >> rest >> reend;
+		negctrls[i].chr = chr;
+		negctrls[i].midpoint = midpoint;
+		negctrls[i].closestREsitenums[0] = rest;
+		negctrls[i].closestREsitenums[1] = reend;
+		negctrls[i].start = midpoint - AssociateInteractions;
+		negctrls[i].end = midpoint + AssociateInteractions;
 		negctrls[i].type="E";
 		++i;
 	}while(!infile1.eof());
 	infile1.close();
 	NofNegCtrls=i-1;
+	cout << NofNegCtrls << "    Enhancer Read" << endl;
+}
 
+else{
+	do{
+		infile1 >> chr >> midpoint >> rest >> reend;
+		if(chr == whichchr){
+			negctrls[i].chr = chr;
+			negctrls[i].midpoint = midpoint;
+			negctrls[i].closestREsitenums[0] = rest;
+			negctrls[i].closestREsitenums[1] = reend;
+			negctrls[i].start = midpoint - AssociateInteractions;
+			negctrls[i].end = midpoint + AssociateInteractions;
+			negctrls[i].type="E";
+			++i;
+		}
+	}while(!infile1.eof());
+	infile1.close();
+	NofNegCtrls=i-1;
+	cout << NofNegCtrls << "    Enhancer Read" << endl;
+}
 	for (i = 0; i < NofNegCtrls; ++i){
 		negctrls[i].nofRESites = dpnIIsites.GetRESitesCount(negctrls[i].chr,negctrls[i].start,negctrls[i].end);
 //		dpnIIsites.GettheREPositions(negctrls[i].chr,negctrls[i].midpoint,negctrls[i].closestREsitenums);
@@ -152,7 +175,7 @@ for(int i = 0; i < NofNegCtrls; ++i){ //Iterate over all refseq genes on that ch
 					}
 				} 
 			} // Checked if it is negctrl-negctrl interaction
-			AnnotateDistalInteractor(p_chr_1,p_chr_2,re_firstinpair,re_secondinpair,pos_firstinpair, pos_secondinpair, ncidx1,ExperimentNo);			
+			AnnotateDistalInteractor(p_chr_1,p_chr_2,re_secondinpair,pos_firstinpair, pos_secondinpair, ncidx1,ExperimentNo);			
 			return pann;
 		}
 	}
@@ -163,7 +186,7 @@ for(int m = 0; m < NofNegCtrls; ++m){ //Iterate over all refseq genes on that ch
 		if((negctrls[m].start <= pos_secondinpair && negctrls[m].end >= pos_secondinpair)){ // If the readstart is contained within an negative control
 			ncidx2 = m;
 			pann = 1; // Read is annotated with a promoter
-			AnnotateDistalInteractor(p_chr_2,p_chr_1,re_secondinpair, re_firstinpair,pos_secondinpair,pos_firstinpair,ncidx2,ExperimentNo); 
+			AnnotateDistalInteractor(p_chr_2,p_chr_1,re_firstinpair,pos_secondinpair,pos_firstinpair,ncidx2,ExperimentNo); 
 			return pann;
 		}
 	}			
@@ -210,7 +233,7 @@ bool NegCtrlClass::AnnotateWithEnhancers(string p_chr_1, int re_firstinpair, int
 						}
 					}
 				} // Checked if it is prom-prom interaction
-				AnnotateDistalInteractor(p_chr_1,p_chr_2,re_firstinpair,re_secondinpair,pos_firstinpair, pos_secondinpair, eidx1,ExperimentNo);
+				AnnotateDistalInteractor(p_chr_1,p_chr_2,re_secondinpair,pos_firstinpair, pos_secondinpair, eidx1,ExperimentNo);
 				return pann;
 			}
 		}
@@ -223,7 +246,7 @@ bool NegCtrlClass::AnnotateWithEnhancers(string p_chr_1, int re_firstinpair, int
 				//	if (proms[pidx2].genes[0] == "0610005C13Rik")
 				//		cout << proms[pidx2].genes[0] << '\t' << p_chr_2 << '\t' << p_chr_1 << '\t' << pos_secondinpair << '\t' << pos_firstinpair << '\t' << resite_secondinpair << '\t' << resite_firstinpair << endl;
 				pann = 1;
-				AnnotateDistalInteractor(p_chr_2,p_chr_1,re_secondinpair, re_firstinpair,pos_secondinpair,pos_firstinpair,eidx2,ExperimentNo); 
+				AnnotateDistalInteractor(p_chr_2,p_chr_1,re_firstinpair,pos_secondinpair,pos_firstinpair,eidx2,ExperimentNo); 
 				return pann;
 			}			
 		}
@@ -237,19 +260,15 @@ void NegCtrlClass::PopulateInteractions(boost::unordered::unordered_map<int, int
 		signals[interactor_resite] = new int[NOFEXPERIMENTS + 1]; // add a new entry
 		for(int z = 0; z < (NOFEXPERIMENTS); ++z)
 			signals[interactor_resite][z + 1] = 0;
-		//		cout << "new   " << signals[interactor_resite][ExperimentNo + 1] << "   ";
 		signals[interactor_resite][ExperimentNo + 1] = 1;
-		//		cout << signals[interactor_resite][ExperimentNo + 1] << endl;
 	}
 	else{ // if inserted before	
-		//		cout << "old   " << signals[interactor_resite][ExperimentNo + 1] << "    ";
 		(signals[interactor_resite][ExperimentNo + 1]) = signals[interactor_resite][ExperimentNo + 1] + 1.0;
-		//		cout << signals[interactor_resite][ExperimentNo + 1] << endl;
 	}
 	signals[interactor_resite][0] = interactor_pos; // Actual read pos
 }
 
-void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int resite_1, int resite_2, int pos_1, int pos_2, int ncidx,int ExperimentNo){
+void NegCtrlClass::AnnotateDistalInteractor(string p_chr_1, string p_chr_2, int resite_2, int pos_1, int pos_2, int ncidx,int ExperimentNo){
 
 	if(p_chr_1.compare(p_chr_2) == 0){ // Intra chromosomal interaction
 		if (pos_2 < pos_1) // if upstream 

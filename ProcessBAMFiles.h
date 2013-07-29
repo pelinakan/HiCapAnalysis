@@ -3,28 +3,61 @@ class ProcessBAM{
 	friend class NegCtrlClass;
 	friend class ProbeSet;
 public:
-	void ProcessTheBAMFile(PromoterClass&,NegCtrlClass&,ProbeSet&,string,int);
+	void ProcessTheBAMFile(PromoterClass&,NegCtrlClass&,ProbeSet&,string,int,string);
 private:
-	void GetPairInformation(BamTools::BamAlignment&, BamTools::BamAlignment&, PairStruct&);
+	bool GetPairInformation(BamTools::BamAlignment&, BamTools::BamAlignment&, PairStruct&,string);
+	bool GetPairInformation_CTX(BamTools::BamAlignment& al, BamTools::BamAlignment& almate, PairStruct& temppair);
 	void ProcessPairs(PairStruct&,RESitesClass&,PromoterClass&,NegCtrlClass&,int, int&,int&, int&);
 	boost::unordered::unordered_map<int, string> RefIDtoChrNames;
 };
 
-void ProcessBAM::GetPairInformation(BamTools::BamAlignment& al, BamTools::BamAlignment& almate, PairStruct& temppair){
+bool ProcessBAM::GetPairInformation_CTX(BamTools::BamAlignment& al, BamTools::BamAlignment& almate, PairStruct& temppair){
+	bool ctx = 0;
+	string chr_1, chr_2;
 	boost::unordered::unordered_map<int, string>::const_iterator it1 = RefIDtoChrNames.find(al.RefID);
 	if(it1 != RefIDtoChrNames.end())
-		temppair.chr_1 = it1->second;
+			chr_1 = it1->second;
 
 	boost::unordered::unordered_map<int, string>::const_iterator it2 = RefIDtoChrNames.find(almate.RefID);
 	if(it2 != RefIDtoChrNames.end())
+			chr_2 = it2->second;
+		
+	if(chr_1 != chr_2){
+		temppair.chr_1 = it1->second;
+		temppair.startcoord = al.Position;
 		temppair.chr_2 = it2->second;
-	
-	temppair.startcoord = al.Position;
-	temppair.endcoord = almate.Position;
-	
+		temppair.endcoord = almate.Position;
+		return 1;
+	}
+	else
+		return 0;
 //	cout << it1->second << "   " << it2->second << "   " << al.Position << "   " << almate.Position << endl;
 }
-void ProcessBAM::ProcessTheBAMFile(PromoterClass& promoters,NegCtrlClass& negctrls,ProbeSet& mm9prs, string BAMFILENAME,int ExperimentNo){
+bool ProcessBAM::GetPairInformation(BamTools::BamAlignment& al, BamTools::BamAlignment& almate, PairStruct& temppair,string whichchr){
+	bool onchr_1 = 0, onchr_2 = 0;
+	boost::unordered::unordered_map<int, string>::const_iterator it1 = RefIDtoChrNames.find(al.RefID);
+	if(it1 != RefIDtoChrNames.end()){
+		if(it1->second == whichchr)
+			onchr_1 = 1;
+	}
+
+	boost::unordered::unordered_map<int, string>::const_iterator it2 = RefIDtoChrNames.find(almate.RefID);
+	if(it2 != RefIDtoChrNames.end()){
+		if(it2->second == whichchr)
+			onchr_2 = 1;
+	}		
+
+	if(onchr_1 && onchr_2){
+		temppair.chr_1 = it1->second;
+		temppair.startcoord = al.Position;
+		temppair.chr_2 = it2->second;
+		temppair.endcoord = almate.Position;
+		return 1;
+	}
+	else
+		return 0;
+}
+void ProcessBAM::ProcessTheBAMFile(PromoterClass& promoters,NegCtrlClass& negctrls,ProbeSet& mm9prs, string BAMFILENAME,int ExperimentNo, string whichchr){
 
 int NofPairsAnnWProms = 0;
 int NofPairsAnnWNegCtrls = 0;
@@ -51,53 +84,88 @@ BamAlignment al,almate;
 vector < RESitesClass > dpnIIparallel; // Each thread will have its own RESiteClass
 
 int nofthreads, poolsize = 0;
-
-	nofthreads = 1;
-	cout << "Number of Threads   " << nofthreads << endl;
-	for (int t = 0; t < nofthreads; ++t){
-		cout << "Thread No " << t << "    ";
-		dpnIIparallel.push_back(RESitesClass());
-		dpnIIparallel.back().InitialiseVars(); // Initialize all RESiteClass
-	}
-//Read the BAM file into PairPool vector
-	cout << "Reading BAM file..." << endl;
-while ( reader.GetNextAlignmentCore(al) ){
+nofthreads = 1;
+cout << "Number of Threads   " << nofthreads << endl;
+for (int t = 0; t < nofthreads; ++t){
+	cout << "Thread No " << t << "    ";
+	dpnIIparallel.push_back(RESitesClass());
+	dpnIIparallel.back().InitialiseVars(); // Initialize all RESiteClass
+}
+if(whichchr == "CTX" || whichchr == "ctx"){ // Only process inter-chr interactions
+	cout << "Reading BAM file for  inter-chromosomal pairs..." << endl;
+	bool includepair = 0;
+	while ( reader.GetNextAlignmentCore(al) ){
 		reader.GetNextAlignmentCore(almate);
-		GetPairInformation(al,almate,PairPool[poolsize]);
+		includepair = GetPairInformation_CTX(al,almate,PairPool[poolsize]);
 		if(al.Position == -1 || almate.Position == -1){
 			cout << "Mate not correct, exiting  the reading loop" << endl;
 			break;
 		}
-		++poolsize;
+		if(includepair)
+			++poolsize;
 
-	if(poolsize == BUFFERSIZE){
-		cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions... ";
-		int tid = 0;
-		for(int i=0;i<poolsize;++i){
-			ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo, NofPairsAnnWProms, NofPairsAnnWNegCtrls, NofPairsNoAnn); //Annotate the pair
+		if(poolsize == BUFFERSIZE){
+			cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions... ";
+			int tid = 0;
+			for(int i=0;i<poolsize;++i)
+				ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo, NofPairsAnnWProms, NofPairsAnnWNegCtrls, NofPairsNoAnn); //Annotate the pair
+			cout << endl << BAMFILENAME << "   " <<  poolsize << "   pairs finished " << endl;
+			delete[] PairPool;
+			PairPool = new PairStruct[BUFFERSIZE];
+			poolsize = 0;
 		}
-		cout << endl << BAMFILENAME << "   " <<  poolsize << "   pairs finished " << endl;
+	}
+	if(poolsize > 0){ // This is to read the last batch of pairs
+		cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions...";
+		int tid = 0;
+		for(int i = 0; i < poolsize; ++i)
+			ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo,NofPairsAnnWProms,NofPairsAnnWNegCtrls,NofPairsNoAnn); //Annotate the pair
+		cout << endl << BAMFILENAME << "   reading finished" << endl;
 		delete[] PairPool;
 		PairPool = new PairStruct[BUFFERSIZE];
 		poolsize = 0;
 	}
+	cout << "Number of Pairs Annotated with Enhancers     " << NofPairsAnnWNegCtrls << endl;
+	cout << "Number of Pairs with No Annotation           " << NofPairsNoAnn << endl;
 }
-if(poolsize > 0){ // This is to read the last batch of pairs
-	cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions...";
+else{ // Process the chromosome given
+//Read the BAM file into PairPool vector
+	cout << "Reading BAM file..." << endl;
+	bool includepair = 0;
+	while ( reader.GetNextAlignmentCore(al) ){
+		reader.GetNextAlignmentCore(almate);
+		includepair = GetPairInformation(al,almate,PairPool[poolsize], whichchr);
+		if(al.Position == -1 || almate.Position == -1){
+			cout << "Mate not correct, exiting  the reading loop" << endl;
+			break;
+		}
+		if(includepair)
+			++poolsize;
 
-	nofthreads = 1;
-	int tid = 0;
-	for(int i = 0; i < poolsize; ++i){
-		ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo,NofPairsAnnWProms,NofPairsAnnWNegCtrls,NofPairsNoAnn); //Annotate the pair
+		if(poolsize == BUFFERSIZE){
+			cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions... ";
+			int tid = 0;
+			for(int i=0;i<poolsize;++i)
+				ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo, NofPairsAnnWProms, NofPairsAnnWNegCtrls, NofPairsNoAnn); //Annotate the pair
+			cout << endl << BAMFILENAME << "   " <<  poolsize << "   pairs finished " << endl;
+			delete[] PairPool;
+			PairPool = new PairStruct[BUFFERSIZE];
+			poolsize = 0;
+		}
 	}
-	cout << endl << BAMFILENAME << "   reading finished" << endl;
-	delete[] PairPool;
-	PairPool = new PairStruct[BUFFERSIZE];
-	poolsize = 0;
+	if(poolsize > 0){ // This is to read the last batch of pairs
+		cout << poolsize << "    Pairs Read" << endl << "Annotating Interactions...";
+		int tid = 0;
+		for(int i = 0; i < poolsize; ++i)
+			ProcessPairs(PairPool[i],dpnIIparallel[tid],promoters,negctrls,ExperimentNo,NofPairsAnnWProms,NofPairsAnnWNegCtrls,NofPairsNoAnn); //Annotate the pair
+		cout << endl << BAMFILENAME << "   reading finished" << endl;
+		delete[] PairPool;
+		PairPool = new PairStruct[BUFFERSIZE];
+		poolsize = 0;
+	}
+	cout << "Number of Pairs Annotated with Enhancers     " << NofPairsAnnWNegCtrls << endl;
+	cout << "Number of Pairs with No Annotation           " << NofPairsNoAnn << endl;
 }
-cout << "Number of Pairs Annotated with Enhancers     " << NofPairsAnnWNegCtrls << endl;
-cout << "Number of Pairs with No Annotation           " << NofPairsNoAnn << endl;
-
 }
 void ProcessBAM::ProcessPairs(PairStruct& thispair, RESitesClass& dpnII, PromoterClass& promoters, NegCtrlClass& negctrls,int ExperimentNo, int& annwp, int& annwnc, int& noann){
 
@@ -109,27 +177,12 @@ void ProcessBAM::ProcessPairs(PairStruct& thispair, RESitesClass& dpnII, Promote
 	
 	bool re1found = dpnII.GettheREPositions(thispair.chr_1,thispair.startcoord,renums1);
 	bool re2found = dpnII.GettheREPositions(thispair.chr_2,thispair.endcoord,renums2);
-	if(re1found){	
-		resite_firstinpair = renums1[1];
-		if((abs(thispair.startcoord - renums1[1])) > MaxInsertLen ){
-			if(abs((thispair.startcoord - renums1[0])) < MaxInsertLen )
-				resite_firstinpair = renums1[0];
-		//	else
-		//		passed1 = 0;
-		}
-	}
+	if(re1found)	
+		resite_firstinpair = renums1[0];
 	else
 		resite_firstinpair = thispair.startcoord;
-
-	if(re2found){
+	if(re2found)
 		resite_secondinpair = renums2[0];
-		if(abs((thispair.endcoord - renums2[0])) > MaxInsertLen){ 
-			if(abs(renums2[1] - thispair.endcoord) < MaxInsertLen) // if the junction is contained within the pair 
-				resite_secondinpair = renums2[1];
-		//	else
-		//		passed2 = 0;
-		}
-	}
 	else
 		resite_secondinpair = thispair.endcoord;
 
