@@ -96,7 +96,7 @@ const int NOFEXPERIMENTS = 2; // Number of Experiments
 int padding = 700; //For Sequence Capture Probes
 double ExpressionThr = 2.0;
 double Mappability_Threshold = 0.5;
-
+string whichchr;
 
 #include "linear.h"
 #include "DataStructs_ProcessSAMFiles.h"
@@ -124,7 +124,7 @@ int main (int argc,char* argv[]){
 	string BaseFileName;
 #ifdef UNIX
 
-	if (argc < 5) {
+	if (argc < 6) {
 		print_usage();
 		return -1;
 	}
@@ -134,6 +134,7 @@ int main (int argc,char* argv[]){
 	MinNumberofReads = double(MinNumberofReads);
 	MinimumJunctionDistance = atoi(argv[3]);
 	BaseFileName = argv[4];
+	whichchr = argv[5];
 
 	cout << "Min Number of Pairs      " << MinNumberofReads << endl;
 	cout << "Min Junction Distance    " << MinimumJunctionDistance << endl;
@@ -169,7 +170,7 @@ int main (int argc,char* argv[]){
 	Promoters.ReadPromoterAnnotation(dpnIIsites, mapp);
 	cout << "Promoters Annotated" << endl;
 	NegativeControls.InitialiseData();
-	NegativeControls.FillNegativeCtrls(dpnIIsites, mapp);
+	NegativeControls.FillNegativeCtrls(dpnIIsites, mapp, whichchr);
 	cout << "Negative Controls Annotated" << endl;
 
 	ReadMetaPeakFile(); // If peaks are already processed.
@@ -187,7 +188,7 @@ int main (int argc,char* argv[]){
 	do{ // Reads all the pairs in each experiment and fills the interaction maps
 		ExperimentNames.push_back(ExperimentName);
 		cout << BAMFILENAME << "     will be read" << endl;
-		bamfile.ProcessTheBAMFile(Promoters,NegativeControls,mm9probes,BAMFILENAME, ExperimentNo);
+		bamfile.ProcessTheBAMFile(Promoters,NegativeControls,mm9probes,BAMFILENAME, ExperimentNo, whichchr);
 		
 		cout << "Detecting Interactions";
 		background.CalculateMeanandStdRegress(NegativeControls, ExperimentName, ExperimentNo); 

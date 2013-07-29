@@ -5,7 +5,7 @@ public:
 	NegativeControlStruct *negctrls;
 int NofNegCtrls;
 void InitialiseData(void);
-void FillNegativeCtrls(RESitesClass&, MappabilityClass&);
+void FillNegativeCtrls(RESitesClass&, MappabilityClass&,string);
 bool AnnotateWithNegCtrls(string,int,int,string,int,int,RESitesClass&,int);
 void BinPeaks(int,int,int);
 
@@ -23,7 +23,7 @@ void NegCtrlClass::InitialiseData(){
 	}
 }
 
-void NegCtrlClass::FillNegativeCtrls(RESitesClass& dpnIIsites, MappabilityClass& mapp){
+void NegCtrlClass::FillNegativeCtrls(RESitesClass& dpnIIsites, MappabilityClass& mapp, string whichchr){
 
 #ifdef UNIX
 string filename1,filename2;
@@ -41,36 +41,72 @@ ifstream infile2(filename2.c_str());
 #endif
 int i=0;
 string chr;
-do{
-	infile1 >>	negctrls[i].chr >> negctrls[i].start >> negctrls[i].end;
-	negctrls[i].midpoint=(abs((negctrls[i].end-negctrls[i].start))/2)+negctrls[i].start;
-	negctrls[i].start = negctrls[i].midpoint - AssociateInteractions;
-	negctrls[i].end = negctrls[i].midpoint + AssociateInteractions;
-	negctrls[i].type="G";
-	++i;
-}while(!infile1.eof());
+if(whichchr == "CTX"){
+	do{
+		infile1 >>	negctrls[i].chr >> negctrls[i].start >> negctrls[i].end;
+		negctrls[i].midpoint=(abs((negctrls[i].end-negctrls[i].start))/2)+negctrls[i].start;
+		negctrls[i].start = negctrls[i].midpoint - AssociateInteractions;
+		negctrls[i].end = negctrls[i].midpoint + AssociateInteractions;
+		negctrls[i].type="G";
+		++i;
+	}while(!infile1.eof());
+	infile1.close();
+	i--;
 
-infile1.close();
-i--;
+	do{
+		infile2 >> negctrls[i].chr >> negctrls[i].start >> negctrls[i].end;
+		negctrls[i].midpoint=(abs((negctrls[i].end-negctrls[i].start))/2)+negctrls[i].start;
+		negctrls[i].start = negctrls[i].midpoint - AssociateInteractions;
+		negctrls[i].end = negctrls[i].midpoint + AssociateInteractions;
+		negctrls[i].type="I";
+		++i;
 
-do{
-	infile2 >> negctrls[i].chr >> negctrls[i].start >> negctrls[i].end;
-	negctrls[i].midpoint=(abs((negctrls[i].end-negctrls[i].start))/2)+negctrls[i].start;
-	negctrls[i].start = negctrls[i].midpoint - AssociateInteractions;
-	negctrls[i].end = negctrls[i].midpoint + AssociateInteractions;
-	negctrls[i].type="I";
-	++i;
+	}while(!infile2.eof());
+	infile2.close();
+	NofNegCtrls=i-1;
 
-}while(!infile2.eof());
-infile2.close();
-NofNegCtrls=i-1;
+}
+else{
+	string chr;
+	int start, end;
+	do{
+		infile1 >>	chr >> start >> end;
+		if(chr == whichchr){
+			negctrls[i].chr = chr;
+			negctrls[i].midpoint=(abs((end-start))/2)+ start;
+			negctrls[i].start = negctrls[i].midpoint - AssociateInteractions;
+			negctrls[i].end = negctrls[i].midpoint + AssociateInteractions;
+			negctrls[i].type="G";
+			++i;
+		}
+	}while(!infile1.eof());
+	infile1.close();
+	i--;
+
+	do{
+		infile2 >>	chr >> start >> end;
+		if(chr == whichchr){
+			negctrls[i].chr = chr;
+			negctrls[i].midpoint=(abs((end-start))/2)+ start;
+			negctrls[i].start = negctrls[i].midpoint - AssociateInteractions;
+			negctrls[i].end = negctrls[i].midpoint + AssociateInteractions;
+			negctrls[i].type="I";
+			++i;
+		}
+	}while(!infile2.eof());
+	infile2.close();
+	NofNegCtrls = i-1;
+}
+
 
 	for (i = 0; i < NofNegCtrls; ++i){
 		negctrls[i].nofRESites = dpnIIsites.GetRESitesCount(negctrls[i].chr,negctrls[i].start,negctrls[i].end);
 		dpnIIsites.GettheREPositions(negctrls[i].chr,negctrls[i].midpoint,negctrls[i].closestREsitenums);
 		negctrls[i].featmappability = mapp.GetMappability(negctrls[i].chr, negctrls[i].start, (negctrls[i].end - negctrls[i].start));
 	}
+cout << NofNegCtrls << "     Negative Controls Read" << endl;
 }
+
 
 bool NegCtrlClass::AnnotateWithNegCtrls(string p_chr_1, int re_firstinpair, int pos_firstinpair, string p_chr_2, int re_secondinpair, int pos_secondinpair, RESitesClass& dpnIIsites,int ExperimentNo){
 

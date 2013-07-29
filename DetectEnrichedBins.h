@@ -52,7 +52,7 @@ void DetectEnrichedBins::FillInteractionStruct(vector<InteractionStruct>& intera
 		interactionstr.back().supp_pairs[ExperimentNo] = values[ExperimentNo + 1];
 		interactionstr.back().chr = chr;
 		interactionstr.back().distance = dist; 
-			interactionstr.back().resites[0] = resite;
+		interactionstr.back().resites[0] = resite;
 		interactionstr.back().pos = values[0];
 		interactionstr.back().type = inttype; // U: upstream , D: downstream , X: inter-chromosomal
 	}
