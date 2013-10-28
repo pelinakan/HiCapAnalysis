@@ -1,0 +1,13 @@
+/mnt/crick/pelina/data/HiCap_05062013/2ndround_sequencing/mergedbam/HiCap1.merged.bam mE_HiCap1.merged.	0
+/mnt/crick/pelina/data/HiCap_05062013/2ndround_sequencing/mergedbam/HiCap2.merged.bam mE_HiCap2.merged.	0
+END
+
+/bubo/home/h20/pelin/3Cproj/DATA/mES_BR3_HiC_SeqCap/HiCap1.merged.bam	mE_HiCap1_merged_	0
+/bubo/home/h20/pelin/3Cproj/DATA/mES_BR3_HiC_SeqCap/HiCap2.merged.bam	mE_HiCap2_merged_	0
+END
+/bubo/home/h20/pelin/3Cproj/DATA/mES_BR3_HiC_SeqCap/HiC_mES_10082012.noduplpairs.bam    mE_HiCap1_       0
+/bubo/home/h20/pelin/3Cproj/DATA/mES_BR3_HiC_SeqCap/HiCap_05062013_concatenated_processed_sortedbyReadName.bam	mE_HiCap2_	0
+END
+/bubo/home/h20/pelin/3Cproj/DATA/mES_All/mE_HiC_BR3_Filtered1.sam	mE_3CBR1_HiCBR3_HiCapBR3_corrected_	0
+/bubo/home/h20/pelin/3Cproj/DATA/mES_All/mE_HiCap_BR3_Filtered1.sam	mE_3CBR1_HiCBR3_HiCapBR3_corrected_	0
+END
